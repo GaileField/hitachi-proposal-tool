@@ -376,6 +376,7 @@
             populateBusinessUnits();
             populateCountries();
             setupCountryStateLogic();
+            setupJobSelectionLogic();
             enableInterface();
             document.getElementById('adminPanel').classList.add('hidden');
             showAlert('success', '🚀 Data loaded successfully! Scroll down to start creating proposals.');
@@ -529,6 +530,200 @@
                 option.textContent = job.JobCode + ' - ' + job.Title;
                 jobCodeSelect.appendChild(option);
             }
+        }
+
+        function setupJobSelectionLogic() {
+            var optionARadio = document.getElementById('optionA');
+            var optionBRadio = document.getElementById('optionB');
+            var jobFamilyGroup = document.getElementById('jobFamilyGroup');
+            var jobCodeGroup = document.getElementById('jobCodeGroup');
+            var jobFamilySelect = document.getElementById('jobFamily');
+            var subFamilySelect = document.getElementById('subFamily');
+            var jobTitleSelect = document.getElementById('jobTitle');
+            var jobCodeSelect = document.getElementById('jobCode');
+
+            // Set up radio button listeners
+            optionARadio.addEventListener('change', function() {
+                if (this.checked) {
+                    jobFamilyGroup.style.display = 'block';
+                    jobCodeGroup.style.display = 'none';
+                    populateJobFamilies();
+                    clearJobSelection();
+                }
+            });
+
+            optionBRadio.addEventListener('change', function() {
+                if (this.checked) {
+                    jobFamilyGroup.style.display = 'none';
+                    jobCodeGroup.style.display = 'block';
+                    clearJobSelection();
+                }
+            });
+
+            // Set up cascading dropdowns for Option A
+            jobFamilySelect.addEventListener('change', function() {
+                var selectedFamily = this.value;
+                if (selectedFamily) {
+                    populateSubFamilies(selectedFamily);
+                    jobTitleSelect.innerHTML = '<option value="">Select job title...</option>';
+                } else {
+                    subFamilySelect.innerHTML = '<option value="">Select sub-family...</option>';
+                    jobTitleSelect.innerHTML = '<option value="">Select job title...</option>';
+                }
+                clearJobSelection();
+            });
+
+            subFamilySelect.addEventListener('change', function() {
+                var selectedFamily = jobFamilySelect.value;
+                var selectedSubFamily = this.value;
+                if (selectedFamily && selectedSubFamily) {
+                    populateJobTitles(selectedFamily, selectedSubFamily);
+                } else {
+                    jobTitleSelect.innerHTML = '<option value="">Select job title...</option>';
+                }
+                clearJobSelection();
+            });
+
+            jobTitleSelect.addEventListener('change', function() {
+                var selectedJobCode = this.value; // Now using job code as value
+                if (selectedJobCode) {
+                    // Find the job by job code
+                    for (var i = 0; i < jobsData.length; i++) {
+                        if (jobsData[i].JobCode === selectedJobCode) {
+                            selectedJob = jobsData[i];
+                            showJobInfo();
+                            showResults();
+                            showProposalSection();
+                            break;
+                        }
+                    }
+                } else {
+                    clearJobSelection();
+                }
+            });
+
+            // Set up Option B direct job code selection
+            jobCodeSelect.addEventListener('change', function() {
+                var jobCode = this.value;
+                if (jobCode) {
+                    selectedJob = null;
+                    for (var i = 0; i < jobsData.length; i++) {
+                        if (jobsData[i].JobCode === jobCode) {
+                            selectedJob = jobsData[i];
+                            break;
+                        }
+                    }
+                    if (selectedJob) {
+                        showJobInfo();
+                        showResults();
+                        showProposalSection();
+                    }
+                } else {
+                    clearJobSelection();
+                }
+            });
+        }
+
+        function populateJobFamilies() {
+            var jobFamilySelect = document.getElementById('jobFamily');
+            jobFamilySelect.innerHTML = '<option value="">Select job family...</option>';
+            
+            // Get unique job families from FamilyTitle column (Column Z)
+            var families = [];
+            for (var i = 0; i < jobsData.length; i++) {
+                var familyTitle = jobsData[i].FamilyTitle;
+                if (familyTitle && familyTitle.trim() !== '' && families.indexOf(familyTitle) === -1) {
+                    families.push(familyTitle);
+                }
+            }
+            
+            // Sort families alphabetically
+            families.sort();
+            
+            // Add options to dropdown
+            for (var i = 0; i < families.length; i++) {
+                var option = document.createElement('option');
+                option.value = families[i];
+                option.textContent = families[i];
+                jobFamilySelect.appendChild(option);
+            }
+        }
+
+        function populateSubFamilies(selectedFamily) {
+            var subFamilySelect = document.getElementById('subFamily');
+            subFamilySelect.innerHTML = '<option value="">Select sub-family...</option>';
+            
+            // Get unique sub-families for the selected family from SubFamilyTitle column (Column AA)
+            var subFamilies = [];
+            for (var i = 0; i < jobsData.length; i++) {
+                var job = jobsData[i];
+                if (job.FamilyTitle === selectedFamily && job.SubFamilyTitle && job.SubFamilyTitle.trim() !== '') {
+                    if (subFamilies.indexOf(job.SubFamilyTitle) === -1) {
+                        subFamilies.push(job.SubFamilyTitle);
+                    }
+                }
+            }
+            
+            // Sort sub-families alphabetically
+            subFamilies.sort();
+            
+            // Add options to dropdown
+            for (var i = 0; i < subFamilies.length; i++) {
+                var option = document.createElement('option');
+                option.value = subFamilies[i];
+                option.textContent = subFamilies[i];
+                subFamilySelect.appendChild(option);
+            }
+        }
+
+        function populateJobTitles(selectedFamily, selectedSubFamily) {
+            var jobTitleSelect = document.getElementById('jobTitle');
+            jobTitleSelect.innerHTML = '<option value="">Select job title...</option>';
+            
+            // Get job titles for the selected family and sub-family from PositionTitle column (Column AB)
+            var jobTitles = [];
+            for (var i = 0; i < jobsData.length; i++) {
+                var job = jobsData[i];
+                if (job.FamilyTitle === selectedFamily && 
+                    job.SubFamilyTitle === selectedSubFamily && 
+                    job.PositionTitle && job.PositionTitle.trim() !== '') {
+                    // Create a display value that includes job code for uniqueness
+                    var displayTitle = job.PositionTitle + ' (' + job.JobCode + ')';
+                    var found = false;
+                    for (var j = 0; j < jobTitles.length; j++) {
+                        if (jobTitles[j].positionTitle === job.PositionTitle && jobTitles[j].jobCode === job.JobCode) {
+                            found = true;
+                            break;
+                        }
+                    }
+                    if (!found) {
+                        jobTitles.push({
+                            positionTitle: job.PositionTitle,
+                            jobCode: job.JobCode,
+                            displayTitle: displayTitle
+                        });
+                    }
+                }
+            }
+            
+            // Sort job titles alphabetically by position title
+            jobTitles.sort(function(a, b) {
+                return a.positionTitle.localeCompare(b.positionTitle);
+            });
+            
+            // Add options to dropdown
+            for (var i = 0; i < jobTitles.length; i++) {
+                var option = document.createElement('option');
+                option.value = jobTitles[i].jobCode; // Use job code as value to find the exact job
+                option.textContent = jobTitles[i].displayTitle;
+                jobTitleSelect.appendChild(option);
+            }
+        }
+
+        function clearJobSelection() {
+            selectedJob = null;
+            hideResults();
+            document.getElementById('jobInfo').classList.add('hidden');
         }
 
         function populateBusinessUnits() {
@@ -808,14 +1003,18 @@
                         var row = jobsRaw[i];
                         if (row[0]) {
                             jobsData.push({
-                                JobCode: row[0],
-                                Title: row[6] || '',
-                                Family: row[2] || '',
-                                SubFamily: row[1] || '',
-                                Level: row[12] || '',
-                                Grade: row[13] || '',
-                                PC: row[10] || '',
-                                HGG: row[11] || ''
+                                JobCode: row[0],          // Column A
+                                SubFamily: row[1] || '',  // Column B (original sub-family)
+                                Family: row[2] || '',     // Column C (original family)
+                                Title: row[6] || '',      // Column G (original title)
+                                Level: row[12] || '',     // Column M
+                                Grade: row[13] || '',     // Column N
+                                PC: row[10] || '',        // Column K
+                                HGG: row[11] || '',       // Column L
+                                // New cascading columns
+                                FamilyTitle: row[25] || '',    // Column Z (26th column, 0-indexed = 25)
+                                SubFamilyTitle: row[26] || '', // Column AA (27th column, 0-indexed = 26)
+                                PositionTitle: row[27] || ''   // Column AB (28th column, 0-indexed = 27)
                             });
                         }
                     }
@@ -1087,7 +1286,8 @@
             
             var jobCodeSelect = document.getElementById('jobCode');
             if (jobCodeSelect) {
-                jobCodeSelect.addEventListener('change', handleJobSelection);
+                // Remove the old event listener since it's now handled in setupJobSelectionLogic
+                // jobCodeSelect.addEventListener('change', handleJobSelection);
             }
             
             var baseSalaryInput = document.getElementById('baseSalary');
@@ -1219,12 +1419,53 @@
                 <!-- Step 2: Select Job -->
                 <div>
                     <h3>Step 2: Select a Job</h3>
+                    
+                    <!-- Option A: Job Family Search -->
                     <div class="form-group">
-                        <label for="jobCode">Job Code:</label>
-                        <select id="jobCode" class="form-control" disabled>
-                            <option value="">Upload Excel data first (Admin Panel)</option>
-                        </select>
+                        <label>
+                            <input type="radio" id="optionA" name="jobSearchOption" value="family" style="margin-right: 8px;">
+                            <strong style="color: #dc2626;">Option A:</strong> Job Family Search
+                        </label>
                     </div>
+                    
+                    <div id="jobFamilyGroup" style="display: none; margin-left: 20px; border-left: 3px solid #dc2626; padding-left: 15px;">
+                        <div class="form-group">
+                            <label for="jobFamily">Job Family:</label>
+                            <select id="jobFamily" class="form-control">
+                                <option value="">Select job family...</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="subFamily">Sub-Family:</label>
+                            <select id="subFamily" class="form-control">
+                                <option value="">Select sub-family...</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="jobTitle">Job Title:</label>
+                            <select id="jobTitle" class="form-control">
+                                <option value="">Select job title...</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Option B: Job Code Search -->
+                    <div class="form-group" style="margin-top: 20px;">
+                        <label>
+                            <input type="radio" id="optionB" name="jobSearchOption" value="code" style="margin-right: 8px;">
+                            <strong style="color: #dc2626;">Option B:</strong> Job Code Search
+                        </label>
+                    </div>
+                    
+                    <div id="jobCodeGroup" style="display: none; margin-left: 20px; border-left: 3px solid #dc2626; padding-left: 15px;">
+                        <div class="form-group">
+                            <label for="jobCode">Job Code:</label>
+                            <select id="jobCode" class="form-control" disabled>
+                                <option value="">Upload Excel data first (Admin Panel)</option>
+                            </select>
+                        </div>
+                    </div>
+                    
                     <div id="jobInfo" class="info-box hidden">
                         <h4>Job Details:</h4>
                         <div id="jobDetails"></div>
