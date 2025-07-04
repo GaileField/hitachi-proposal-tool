@@ -230,26 +230,36 @@
             color: #991b1b;
         }
 
+        .alert-info {
+            background: #dbeafe;
+            border: 1px solid #93c5fd;
+            color: #1e40af;
+        }
+
         .hidden {
             display: none;
         }
 
-        .file-upload {
-            border: 2px dashed #d1d5db;
+        .data-status {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #f0f9ff;
+            border: 1px solid #0ea5e9;
             border-radius: 8px;
-            padding: 40px;
-            text-align: center;
+            padding: 15px;
             margin-bottom: 20px;
-            transition: border-color 0.3s;
         }
 
-        .file-upload:hover {
-            border-color: #3b82f6;
+        .admin-link {
+            color: #0ea5e9;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 14px;
         }
 
-        .file-upload.dragover {
-            border-color: #3b82f6;
-            background: #eff6ff;
+        .admin-link:hover {
+            text-decoration: underline;
         }
     </style>
 </head>
@@ -261,30 +271,16 @@
             <p>Excel-powered compensation proposal system</p>
         </div>
 
-        <!-- File Upload Section (Always Visible) -->
-        <div class="section">
-            <div class="section-header criteria-header">
-                📁 Data Upload
-            </div>
-            <div class="file-upload" id="fileUpload">
-                <p>📎 Drag and drop your Excel file here or click to browse</p>
-                <input type="file" id="excelFile" accept=".xlsx,.xls" style="display: none;">
-                <button type="button" class="btn" onclick="document.getElementById('excelFile').click()">
-                    📁 Choose Excel File
-                </button>
-                <p style="margin-top: 10px; color: #6b7280; font-size: 14px;">
-                    Required sheets: 'HiNext Inventory' and 'Salary Ranges'
-                </p>
-            </div>
-        </div>
-
         <!-- Data Status -->
-        <div id="dataStatus" class="alert alert-error">
-            ❌ No data loaded. Please upload Excel file with 'HiNext Inventory' and 'Salary Ranges' sheets.
+        <div class="data-status">
+            <div id="dataStatus">
+                🔄 Loading data...
+            </div>
+            <a href="admin.html" class="admin-link">🔧 Admin Panel</a>
         </div>
 
         <!-- Selection Criteria -->
-        <div class="section" id="selectionSection" style="display: none;">
+        <div class="section" id="selectionSection">
             <div class="section-header criteria-header">
                 🎯 Selection Criteria - Please complete both steps
             </div>
@@ -313,7 +309,7 @@
                     <div class="form-group">
                         <label for="jobCode">Job Code:</label>
                         <select id="jobCode" class="form-control">
-                            <option value="">Select a job code...</option>
+                            <option value="">Loading job codes...</option>
                         </select>
                     </div>
                     <div id="jobInfo" class="info-box hidden">
@@ -450,84 +446,49 @@
         let proposals = [];
         let selectedJob = null;
 
-        // File upload functionality
-        const fileUpload = document.getElementById('fileUpload');
-        const fileInput = document.getElementById('excelFile');
-
-        fileUpload.addEventListener('click', () => fileInput.click());
-        fileUpload.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            fileUpload.classList.add('dragover');
-        });
-        fileUpload.addEventListener('dragleave', () => {
-            fileUpload.classList.remove('dragover');
-        });
-        fileUpload.addEventListener('drop', (e) => {
-            e.preventDefault();
-            fileUpload.classList.remove('dragover');
-            handleFile(e.dataTransfer.files[0]);
+        // Load data on page startup
+        document.addEventListener('DOMContentLoaded', function() {
+            loadStoredData();
         });
 
-        fileInput.addEventListener('change', (e) => {
-            handleFile(e.target.files[0]);
-        });
-
-        function handleFile(file) {
-            if (!file) return;
-
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                try {
-                    const workbook = XLSX.read(e.target.result, { type: 'binary' });
+        function loadStoredData() {
+            try {
+                const storedData = localStorage.getItem('proposalToolData');
+                
+                if (storedData) {
+                    const data = JSON.parse(storedData);
+                    jobsData = data.jobs || [];
+                    salaryData = data.salaries || [];
                     
-                    // Read HiNext Inventory sheet (jobs data)
-                    if (workbook.SheetNames.includes('HiNext Inventory')) {
-                        const jobsSheet = workbook.Sheets['HiNext Inventory'];
-                        const jobsRaw = XLSX.utils.sheet_to_json(jobsSheet, { header: 1, range: 4 });
-                        
-                        jobsData = jobsRaw.slice(1).filter(row => row[0]).map(row => ({
-                            JobCode: row[0],
-                            Title: row[6] || '',
-                            Family: row[2] || '',
-                            SubFamily: row[1] || '',
-                            Level: row[12] || '',
-                            Grade: row[13] || '',
-                            PC: row[10] || '',
-                            HGG: row[11] || ''
-                        }));
-                    }
-
-                    // Read Salary Ranges sheet
-                    if (workbook.SheetNames.includes('Salary Ranges')) {
-                        const salarySheet = workbook.Sheets['Salary Ranges'];
-                        const salaryRaw = XLSX.utils.sheet_to_json(salarySheet, { header: 1 });
-                        
-                        salaryData = salaryRaw.slice(1).filter(row => row[0] && row[1]).map(row => ({
-                            JobCode: row[0],
-                            Min: parseFloat(row[1]) || 0,
-                            Midpoint: parseFloat(row[2]) || 0,
-                            Max: parseFloat(row[3]) || 0
-                        }));
-                    }
-
                     if (jobsData.length > 0 && salaryData.length > 0) {
-                        updateDataStatus(true, `✅ Data loaded: ${jobsData.length} jobs, ${salaryData.length} salary records`);
+                        const lastUpdated = new Date(data.lastUpdated).toLocaleString();
+                        updateDataStatus('success', `✅ Data loaded: ${jobsData.length} jobs, ${salaryData.length} salary records (Updated: ${lastUpdated})`);
                         populateJobCodes();
-                        showSections();
+                        enableInterface();
                     } else {
-                        updateDataStatus(false, '❌ Invalid file format. Please ensure sheets "HiNext Inventory" and "Salary Ranges" exist.');
+                        throw new Error('No valid data found');
                     }
-                } catch (error) {
-                    updateDataStatus(false, '❌ Error reading Excel file: ' + error.message);
+                } else {
+                    throw new Error('No data available');
                 }
-            };
-            reader.readAsBinaryString(file);
+            } catch (error) {
+                updateDataStatus('error', '❌ No data loaded. Contact admin to upload Excel data.');
+                disableInterface();
+            }
         }
 
-        function updateDataStatus(success, message) {
+        function updateDataStatus(type, message) {
             const statusDiv = document.getElementById('dataStatus');
-            statusDiv.className = success ? 'alert alert-success' : 'alert alert-error';
-            statusDiv.textContent = message;
+            statusDiv.innerHTML = message;
+        }
+
+        function enableInterface() {
+            document.getElementById('selectionSection').style.display = 'block';
+        }
+
+        function disableInterface() {
+            document.getElementById('selectionSection').style.display = 'none';
+            document.getElementById('jobCode').innerHTML = '<option value="">No data available - Contact admin</option>';
         }
 
         function populateJobCodes() {
@@ -537,13 +498,9 @@
             jobsData.forEach(job => {
                 const option = document.createElement('option');
                 option.value = job.JobCode;
-                option.textContent = job.JobCode;
+                option.textContent = `${job.JobCode} - ${job.Title}`;
                 jobCodeSelect.appendChild(option);
             });
-        }
-
-        function showSections() {
-            document.getElementById('selectionSection').style.display = 'block';
         }
 
         // Job selection functionality
@@ -590,9 +547,9 @@
             // Find salary data for this job
             const salaryInfo = salaryData.find(salary => salary.JobCode === selectedJob.JobCode);
             if (salaryInfo) {
-                document.getElementById('salaryMin').textContent = `$${salaryInfo.Min.toLocaleString()}`;
-                document.getElementById('salaryMid').textContent = `$${salaryInfo.Midpoint.toLocaleString()}`;
-                document.getElementById('salaryMax').textContent = `$${salaryInfo.Max.toLocaleString()}`;
+                document.getElementById('salaryMin').textContent = `${salaryInfo.Min.toLocaleString()}`;
+                document.getElementById('salaryMid').textContent = `${salaryInfo.Midpoint.toLocaleString()}`;
+                document.getElementById('salaryMax').textContent = `${salaryInfo.Max.toLocaleString()}`;
             } else {
                 document.getElementById('salaryMin').textContent = 'N/A';
                 document.getElementById('salaryMid').textContent = 'N/A';
@@ -720,8 +677,8 @@
                 row.innerHTML = `
                     <td>${proposal.jobCode}</td>
                     <td>${proposal.jobTitle}</td>
-                    <td>$${proposal.baseSalary.toLocaleString()}</td>
-                    <td>${proposal.ttc ? '$' + proposal.ttc.toLocaleString() : ''}</td>
+                    <td>${proposal.baseSalary.toLocaleString()}</td>
+                    <td>${proposal.ttc ? ' + proposal.ttc.toLocaleString() : ''}</td>
                     <td>${proposal.salaryPosition}</td>
                     <td>${proposal.businessUnit}</td>
                     <td>${proposal.country}</td>
@@ -759,6 +716,9 @@
             // Download
             XLSX.writeFile(wb, 'job_proposals.xlsx');
         }
+
+        // Auto-refresh data every 30 seconds
+        setInterval(loadStoredData, 30000);
     </script>
 </body>
 </html>
