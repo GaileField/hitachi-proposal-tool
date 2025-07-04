@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Job Proposal Tool</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f8f9fa;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            color: #1f2937;
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: #6b7280;
+            font-style: italic;
+        }
+
+        .section {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .section-header {
+            color: white;
+            padding: 15px 20px;
+            border-radius: 8px 8px 0 0;
+            margin: -30px -30px 20px -30px;
+            font-weight: bold;
+            font-size: 1.2rem;
+        }
+
+        .criteria-header {
+            background: #dc2626;
+        }
+
+        .results-header {
+            background: #374151;
+        }
+
+        .proposal-header {
+            background: #16a34a;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #374151;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .btn {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: background-color 0.3s;
+        }
+
+        .btn:hover {
+            background: #2563eb;
+        }
+
+        .btn-success {
+            background: #16a34a;
+        }
+
+        .btn-success:hover {
+            background: #15803d;
+        }
+
+        .info-box {
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            border-radius: 8px;
+            padding: 16px;
+            margin-top: 15px;
+        }
+
+        .salary-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .salary-item {
+            text-align: center;
+            background: #f9fafb;
+            padding: 15px;
+            border-radius: 8px;
+        }
+
+        .salary-label {
+            font-size: 12px;
+            color: #6b7280;
+            margin-bottom: 5px;
+        }
+
+        .salary-value {
+            font-weight: bold;
+            font-size: 16px;
+            color: #1f2937;
+        }
+
+        .results-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 30px;
+        }
+
+        .job-details {
+            background: #f9fafb;
+            padding: 20px;
+            border-radius: 8px;
+        }
+
+        .job-details h3 {
+            color: #1f2937;
+            margin-bottom: 15px;
+            font-size: 1.3rem;
+        }
+
+        .detail-item {
+            margin-bottom: 10px;
+        }
+
+        .detail-label {
+            font-weight: 600;
+            color: #374151;
+        }
+
+        .proposals-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        .proposals-table th,
+        .proposals-table td {
+            border: 1px solid #d1d5db;
+            padding: 12px;
+            text-align: left;
+        }
+
+        .proposals-table th {
+            background: #f9fafb;
+            font-weight: 600;
+            color: #374151;
+        }
+
+        .proposals-table tr:hover {
+            background: #f9fafb;
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+
+        .alert-success {
+            background: #d1fae5;
+            border: 1px solid #a7f3d0;
+            color: #065f46;
+        }
+
+        .alert-error {
+            background: #fee2e2;
+            border: 1px solid #fecaca;
+            color: #991b1b;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .file-upload {
+            border: 2px dashed #d1d5db;
+            border-radius: 8px;
+            padding: 40px;
+            text-align: center;
+            margin-bottom: 20px;
+            transition: border-color 0.3s;
+        }
+
+        .file-upload:hover {
+            border-color: #3b82f6;
+        }
+
+        .file-upload.dragover {
+            border-color: #3b82f6;
+            background: #eff6ff;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>📊 Job Proposal Tool</h1>
+            <p>Excel-powered compensation proposal system</p>
+        </div>
+
+        <!-- File Upload Section (Always Visible) -->
+        <div class="section">
+            <div class="section-header criteria-header">
+                📁 Data Upload
+            </div>
+            <div class="file-upload" id="fileUpload">
+                <p>📎 Drag and drop your Excel file here or click to browse</p>
+                <input type="file" id="excelFile" accept=".xlsx,.xls" style="display: none;">
+                <button type="button" class="btn" onclick="document.getElementById('excelFile').click()">
+                    📁 Choose Excel File
+                </button>
+                <p style="margin-top: 10px; color: #6b7280; font-size: 14px;">
+                    Required sheets: 'HiNext Inventory' and 'Salary Ranges'
+                </p>
+            </div>
+        </div>
+
+        <!-- Data Status -->
+        <div id="dataStatus" class="alert alert-error">
+            ❌ No data loaded. Please upload Excel file with 'HiNext Inventory' and 'Salary Ranges' sheets.
+        </div>
+
+        <!-- Selection Criteria -->
+        <div class="section" id="selectionSection" style="display: none;">
+            <div class="section-header criteria-header">
+                🎯 Selection Criteria - Please complete both steps
+            </div>
+            
+            <div class="grid">
+                <!-- Step 1: Business Unit & Location -->
+                <div>
+                    <h3>Step 1: Business Unit & Location</h3>
+                    <div class="form-group">
+                        <label for="businessUnit">Business Unit:</label>
+                        <input type="text" id="businessUnit" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label for="locationNote">Location Note:</label>
+                        <input type="text" id="locationNote" class="form-control" value="EMEA">
+                    </div>
+                    <div class="form-group">
+                        <label for="country">Country:</label>
+                        <input type="text" id="country" class="form-control">
+                    </div>
+                </div>
+
+                <!-- Step 2: Select Job -->
+                <div>
+                    <h3>Step 2: Select a Job</h3>
+                    <div class="form-group">
+                        <label for="jobCode">Job Code:</label>
+                        <select id="jobCode" class="form-control">
+                            <option value="">Select a job code...</option>
+                        </select>
+                    </div>
+                    <div id="jobInfo" class="info-box hidden">
+                        <h4>Job Details:</h4>
+                        <div id="jobDetails"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Selection Results -->
+        <div class="section" id="resultsSection" style="display: none;">
+            <div class="section-header results-header">
+                📊 Selection Results
+            </div>
+            
+            <div class="results-grid">
+                <!-- Job Details -->
+                <div class="job-details">
+                    <h3>Job Details</h3>
+                    <div id="selectedJobDetails"></div>
+                </div>
+
+                <!-- Salary Range -->
+                <div class="job-details">
+                    <h3>Salary Range</h3>
+                    <div id="salaryRange">
+                        <div class="salary-grid">
+                            <div class="salary-item">
+                                <div class="salary-label">Minimum</div>
+                                <div class="salary-value" id="salaryMin">N/A</div>
+                            </div>
+                            <div class="salary-item">
+                                <div class="salary-label">Midpoint</div>
+                                <div class="salary-value" id="salaryMid">N/A</div>
+                            </div>
+                            <div class="salary-item">
+                                <div class="salary-label">Maximum</div>
+                                <div class="salary-value" id="salaryMax">N/A</div>
+                            </div>
+                            <div class="salary-item">
+                                <div class="salary-label">Position</div>
+                                <div class="salary-value" id="salaryPosition">-</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Location Info -->
+                <div class="job-details">
+                    <h3>Location Info</h3>
+                    <div id="locationInfo"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Proposal Creation -->
+        <div class="section" id="proposalSection" style="display: none;">
+            <div class="section-header proposal-header">
+                💰 Create Proposal - Please input compensation details
+            </div>
+            
+            <div class="grid">
+                <!-- Compensation Details -->
+                <div>
+                    <h3>Compensation Details</h3>
+                    <div class="form-group">
+                        <label for="baseSalary">Base Salary ($):</label>
+                        <input type="number" id="baseSalary" class="form-control" min="0" step="1000">
+                    </div>
+                    <div class="form-group">
+                        <label for="ttc">Total Target Compensation ($):</label>
+                        <input type="number" id="ttc" class="form-control" min="0" step="1000">
+                    </div>
+                </div>
+
+                <!-- Incentive Plan -->
+                <div>
+                    <h3>Incentive Plan</h3>
+                    <div class="form-group">
+                        <label for="stiPlan">STI/GSIP Plan Name:</label>
+                        <input type="text" id="stiPlan" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label for="stiPercent">STI/GSIP %:</label>
+                        <input type="number" id="stiPercent" class="form-control" min="0" max="100" step="0.5">
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="comments">Comments:</label>
+                <textarea id="comments" class="form-control" rows="3"></textarea>
+            </div>
+
+            <button type="button" class="btn btn-success" onclick="addProposal()">
+                ➕ Add Proposal
+            </button>
+        </div>
+
+        <!-- Proposals List -->
+        <div class="section" id="proposalsSection" style="display: none;">
+            <div class="section-header results-header">
+                📋 Created Proposals
+            </div>
+            
+            <table class="proposals-table">
+                <thead>
+                    <tr>
+                        <th>Job Code</th>
+                        <th>Job Title</th>
+                        <th>Base Salary</th>
+                        <th>TTC</th>
+                        <th>Position</th>
+                        <th>Business Unit</th>
+                        <th>Country</th>
+                        <th>Created</th>
+                    </tr>
+                </thead>
+                <tbody id="proposalsTableBody">
+                </tbody>
+            </table>
+            
+            <button type="button" class="btn" onclick="downloadProposals()" style="margin-top: 20px;">
+                📥 Download as Excel
+            </button>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script>
+        let jobsData = [];
+        let salaryData = [];
+        let proposals = [];
+        let selectedJob = null;
+
+        // File upload functionality
+        const fileUpload = document.getElementById('fileUpload');
+        const fileInput = document.getElementById('excelFile');
+
+        fileUpload.addEventListener('click', () => fileInput.click());
+        fileUpload.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            fileUpload.classList.add('dragover');
+        });
+        fileUpload.addEventListener('dragleave', () => {
+            fileUpload.classList.remove('dragover');
+        });
+        fileUpload.addEventListener('drop', (e) => {
+            e.preventDefault();
+            fileUpload.classList.remove('dragover');
+            handleFile(e.dataTransfer.files[0]);
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            handleFile(e.target.files[0]);
+        });
+
+        function handleFile(file) {
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const workbook = XLSX.read(e.target.result, { type: 'binary' });
+                    
+                    // Read HiNext Inventory sheet (jobs data)
+                    if (workbook.SheetNames.includes('HiNext Inventory')) {
+                        const jobsSheet = workbook.Sheets['HiNext Inventory'];
+                        const jobsRaw = XLSX.utils.sheet_to_json(jobsSheet, { header: 1, range: 4 });
+                        
+                        jobsData = jobsRaw.slice(1).filter(row => row[0]).map(row => ({
+                            JobCode: row[0],
+                            Title: row[6] || '',
+                            Family: row[2] || '',
+                            SubFamily: row[1] || '',
+                            Level: row[12] || '',
+                            Grade: row[13] || '',
+                            PC: row[10] || '',
+                            HGG: row[11] || ''
+                        }));
+                    }
+
+                    // Read Salary Ranges sheet
+                    if (workbook.SheetNames.includes('Salary Ranges')) {
+                        const salarySheet = workbook.Sheets['Salary Ranges'];
+                        const salaryRaw = XLSX.utils.sheet_to_json(salarySheet, { header: 1 });
+                        
+                        salaryData = salaryRaw.slice(1).filter(row => row[0] && row[1]).map(row => ({
+                            JobCode: row[0],
+                            Min: parseFloat(row[1]) || 0,
+                            Midpoint: parseFloat(row[2]) || 0,
+                            Max: parseFloat(row[3]) || 0
+                        }));
+                    }
+
+                    if (jobsData.length > 0 && salaryData.length > 0) {
+                        updateDataStatus(true, `✅ Data loaded: ${jobsData.length} jobs, ${salaryData.length} salary records`);
+                        populateJobCodes();
+                        showSections();
+                    } else {
+                        updateDataStatus(false, '❌ Invalid file format. Please ensure sheets "HiNext Inventory" and "Salary Ranges" exist.');
+                    }
+                } catch (error) {
+                    updateDataStatus(false, '❌ Error reading Excel file: ' + error.message);
+                }
+            };
+            reader.readAsBinaryString(file);
+        }
+
+        function updateDataStatus(success, message) {
+            const statusDiv = document.getElementById('dataStatus');
+            statusDiv.className = success ? 'alert alert-success' : 'alert alert-error';
+            statusDiv.textContent = message;
+        }
+
+        function populateJobCodes() {
+            const jobCodeSelect = document.getElementById('jobCode');
+            jobCodeSelect.innerHTML = '<option value="">Select a job code...</option>';
+            
+            jobsData.forEach(job => {
+                const option = document.createElement('option');
+                option.value = job.JobCode;
+                option.textContent = job.JobCode;
+                jobCodeSelect.appendChild(option);
+            });
+        }
+
+        function showSections() {
+            document.getElementById('selectionSection').style.display = 'block';
+        }
+
+        // Job selection functionality
+        document.getElementById('jobCode').addEventListener('change', function() {
+            const jobCode = this.value;
+            if (jobCode) {
+                selectedJob = jobsData.find(job => job.JobCode === jobCode);
+                if (selectedJob) {
+                    showJobInfo();
+                    showResults();
+                    showProposalSection();
+                }
+            } else {
+                hideResults();
+            }
+        });
+
+        function showJobInfo() {
+            const jobInfo = document.getElementById('jobInfo');
+            const jobDetails = document.getElementById('jobDetails');
+            
+            jobDetails.innerHTML = `
+                <div><strong>Title:</strong> ${selectedJob.Title}</div>
+                <div><strong>Family:</strong> ${selectedJob.Family}</div>
+                <div><strong>Level:</strong> ${selectedJob.Level}</div>
+                <div><strong>Grade:</strong> ${selectedJob.Grade}</div>
+            `;
+            
+            jobInfo.classList.remove('hidden');
+        }
+
+        function showResults() {
+            const selectedJobDetails = document.getElementById('selectedJobDetails');
+            selectedJobDetails.innerHTML = `
+                <div class="detail-item"><span class="detail-label">Job Code:</span> ${selectedJob.JobCode}</div>
+                <div class="detail-item"><span class="detail-label">Title:</span> ${selectedJob.Title}</div>
+                <div class="detail-item"><span class="detail-label">Family:</span> ${selectedJob.Family}</div>
+                <div class="detail-item"><span class="detail-label">Level:</span> ${selectedJob.Level}</div>
+                <div class="detail-item"><span class="detail-label">Grade:</span> ${selectedJob.Grade}</div>
+                <div class="detail-item"><span class="detail-label">PC:</span> ${selectedJob.PC}</div>
+                <div class="detail-item"><span class="detail-label">HGG:</span> ${selectedJob.HGG}</div>
+            `;
+
+            // Find salary data for this job
+            const salaryInfo = salaryData.find(salary => salary.JobCode === selectedJob.JobCode);
+            if (salaryInfo) {
+                document.getElementById('salaryMin').textContent = `$${salaryInfo.Min.toLocaleString()}`;
+                document.getElementById('salaryMid').textContent = `$${salaryInfo.Midpoint.toLocaleString()}`;
+                document.getElementById('salaryMax').textContent = `$${salaryInfo.Max.toLocaleString()}`;
+            } else {
+                document.getElementById('salaryMin').textContent = 'N/A';
+                document.getElementById('salaryMid').textContent = 'N/A';
+                document.getElementById('salaryMax').textContent = 'N/A';
+            }
+
+            updateLocationInfo();
+            document.getElementById('resultsSection').style.display = 'block';
+        }
+
+        function updateLocationInfo() {
+            const businessUnit = document.getElementById('businessUnit').value;
+            const country = document.getElementById('country').value;
+            const locationNote = document.getElementById('locationNote').value;
+            
+            document.getElementById('locationInfo').innerHTML = `
+                <div class="detail-item"><span class="detail-label">Business Unit:</span> ${businessUnit || 'Not specified'}</div>
+                <div class="detail-item"><span class="detail-label">Country:</span> ${country || 'Not specified'}</div>
+                <div class="detail-item"><span class="detail-label">Location:</span> ${locationNote}</div>
+            `;
+        }
+
+        function showProposalSection() {
+            document.getElementById('proposalSection').style.display = 'block';
+        }
+
+        function hideResults() {
+            document.getElementById('resultsSection').style.display = 'none';
+            document.getElementById('proposalSection').style.display = 'none';
+            document.getElementById('jobInfo').classList.add('hidden');
+        }
+
+        // Update location info when fields change
+        ['businessUnit', 'country', 'locationNote'].forEach(id => {
+            document.getElementById(id).addEventListener('input', updateLocationInfo);
+        });
+
+        // Update salary position when base salary changes
+        document.getElementById('baseSalary').addEventListener('input', function() {
+            const baseSalary = parseFloat(this.value);
+            if (baseSalary && selectedJob) {
+                const salaryInfo = salaryData.find(salary => salary.JobCode === selectedJob.JobCode);
+                if (salaryInfo) {
+                    let position;
+                    if (baseSalary < salaryInfo.Min) {
+                        position = '🔴 Below Range';
+                    } else if (baseSalary > salaryInfo.Max) {
+                        position = '🔴 Above Range';
+                    } else {
+                        const pct = ((baseSalary - salaryInfo.Min) / (salaryInfo.Max - salaryInfo.Min)) * 100;
+                        position = `🟢 ${Math.round(pct)}% in range`;
+                    }
+                    document.getElementById('salaryPosition').innerHTML = position;
+                }
+            }
+        });
+
+        function addProposal() {
+            const baseSalary = parseFloat(document.getElementById('baseSalary').value);
+            const ttc = parseFloat(document.getElementById('ttc').value) || 0;
+            const stiPlan = document.getElementById('stiPlan').value;
+            const stiPercent = parseFloat(document.getElementById('stiPercent').value) || 0;
+            const comments = document.getElementById('comments').value;
+            const businessUnit = document.getElementById('businessUnit').value;
+            const country = document.getElementById('country').value;
+
+            if (!baseSalary || baseSalary <= 0) {
+                alert('❌ Please enter a valid base salary');
+                return;
+            }
+
+            if (!selectedJob) {
+                alert('❌ Please select a job first');
+                return;
+            }
+
+            // Calculate salary position
+            let position = 'No range data';
+            const salaryInfo = salaryData.find(salary => salary.JobCode === selectedJob.JobCode);
+            if (salaryInfo) {
+                if (baseSalary < salaryInfo.Min) {
+                    position = 'Below Range';
+                } else if (baseSalary > salaryInfo.Max) {
+                    position = 'Above Range';
+                } else {
+                    const pct = ((baseSalary - salaryInfo.Min) / (salaryInfo.Max - salaryInfo.Min)) * 100;
+                    position = `${Math.round(pct)}% in range`;
+                }
+            }
+
+            const proposal = {
+                jobCode: selectedJob.JobCode,
+                jobTitle: selectedJob.Title,
+                baseSalary: baseSalary,
+                ttc: ttc,
+                salaryPosition: position,
+                businessUnit: businessUnit,
+                country: country,
+                stiPlan: stiPlan,
+                stiPercent: stiPercent,
+                comments: comments,
+                created: new Date().toLocaleDateString()
+            };
+
+            proposals.push(proposal);
+            updateProposalsTable();
+            
+            // Clear form
+            document.getElementById('baseSalary').value = '';
+            document.getElementById('ttc').value = '';
+            document.getElementById('stiPlan').value = '';
+            document.getElementById('stiPercent').value = '';
+            document.getElementById('comments').value = '';
+            document.getElementById('salaryPosition').textContent = '-';
+
+            alert('✅ Proposal added successfully!');
+        }
+
+        function updateProposalsTable() {
+            const tbody = document.getElementById('proposalsTableBody');
+            tbody.innerHTML = '';
+
+            proposals.forEach(proposal => {
+                const row = tbody.insertRow();
+                row.innerHTML = `
+                    <td>${proposal.jobCode}</td>
+                    <td>${proposal.jobTitle}</td>
+                    <td>$${proposal.baseSalary.toLocaleString()}</td>
+                    <td>${proposal.ttc ? '$' + proposal.ttc.toLocaleString() : ''}</td>
+                    <td>${proposal.salaryPosition}</td>
+                    <td>${proposal.businessUnit}</td>
+                    <td>${proposal.country}</td>
+                    <td>${proposal.created}</td>
+                `;
+            });
+
+            document.getElementById('proposalsSection').style.display = 'block';
+        }
+
+        function downloadProposals() {
+            if (proposals.length === 0) {
+                alert('❌ No proposals to download');
+                return;
+            }
+
+            // Create workbook
+            const ws = XLSX.utils.json_to_sheet(proposals.map(p => ({
+                'Job Code': p.jobCode,
+                'Job Title': p.jobTitle,
+                'Base Salary': p.baseSalary,
+                'TTC': p.ttc,
+                'Salary Position': p.salaryPosition,
+                'Business Unit': p.businessUnit,
+                'Country': p.country,
+                'STI Plan': p.stiPlan,
+                'STI %': p.stiPercent,
+                'Comments': p.comments,
+                'Created': p.created
+            })));
+
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Proposals');
+
+            // Download
+            XLSX.writeFile(wb, 'job_proposals.xlsx');
+        }
+    </script>
+</body>
+</html>
