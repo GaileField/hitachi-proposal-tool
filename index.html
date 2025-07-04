@@ -863,6 +863,90 @@
             let position = 'No range data';
             const salaryInfo = salaryData.find(salary => salary.JobCode === selectedJob.JobCode);
             if (salaryInfo) {
-                if (baseSalary < salaryInfo.Min) {
-                    position = 'Below Range';
+            } else if (baseSalary > salaryInfo.Max) {
+                    position = 'Above Range';
+                } else {
+                    const pct = ((baseSalary - salaryInfo.Min) / (salaryInfo.Max - salaryInfo.Min)) * 100;
+                    position = `${Math.round(pct)}% in range`;
                 }
+            }
+
+            const proposal = {
+                jobCode: selectedJob.JobCode,
+                jobTitle: selectedJob.Title,
+                baseSalary: baseSalary,
+                ttc: ttc,
+                salaryPosition: position,
+                businessUnit: businessUnit,
+                country: country,
+                stiPlan: stiPlan,
+                stiPercent: stiPercent,
+                comments: comments,
+                created: new Date().toLocaleDateString()
+            };
+
+            proposals.push(proposal);
+            updateProposalsTable();
+            
+            // Clear form
+            document.getElementById('baseSalary').value = '';
+            document.getElementById('ttc').value = '';
+            document.getElementById('stiPlan').value = '';
+            document.getElementById('stiPercent').value = '';
+            document.getElementById('comments').value = '';
+            document.getElementById('salaryPosition').textContent = '-';
+
+            alert('✅ Proposal added successfully!');
+        }
+
+        function updateProposalsTable() {
+            const tbody = document.getElementById('proposalsTableBody');
+            tbody.innerHTML = '';
+
+            proposals.forEach(proposal => {
+                const row = tbody.insertRow();
+                row.innerHTML = `
+                    <td>${proposal.jobCode}</td>
+                    <td>${proposal.jobTitle}</td>
+                    <td>${proposal.baseSalary.toLocaleString()}</td>
+                    <td>${proposal.ttc ? ' + proposal.ttc.toLocaleString() : ''}</td>
+                    <td>${proposal.salaryPosition}</td>
+                    <td>${proposal.businessUnit}</td>
+                    <td>${proposal.country}</td>
+                    <td>${proposal.created}</td>
+                `;
+            });
+
+            document.getElementById('proposalsSection').style.display = 'block';
+        }
+
+        function downloadProposals() {
+            if (proposals.length === 0) {
+                alert('❌ No proposals to download');
+                return;
+            }
+
+            // Create workbook
+            const ws = XLSX.utils.json_to_sheet(proposals.map(p => ({
+                'Job Code': p.jobCode,
+                'Job Title': p.jobTitle,
+                'Base Salary': p.baseSalary,
+                'TTC': p.ttc,
+                'Salary Position': p.salaryPosition,
+                'Business Unit': p.businessUnit,
+                'Country': p.country,
+                'STI Plan': p.stiPlan,
+                'STI %': p.stiPercent,
+                'Comments': p.comments,
+                'Created': p.created
+            })));
+
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Proposals');
+
+            // Download
+            XLSX.writeFile(wb, 'job_proposals.xlsx');
+        }
+    </script>
+</body>
+</html>
