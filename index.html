@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<th>Created</th><!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -283,6 +283,7 @@
             margin-bottom: 20px;
             transition: border-color 0.3s;
             background: #f9fafb;
+            cursor: pointer;
         }
 
         .file-upload:hover {
@@ -329,6 +330,783 @@
     </style>
 </head>
 <body>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script>
+        // GLOBAL VARIABLES AND FUNCTIONS - DEFINED FIRST
+        var jobsData = [];
+        var salaryData = [];
+        var businessUnitsData = [];
+        var countryListData = [];
+        var geoData = [];
+        var proposals = [];
+        var selectedJob = null;
+        var ADMIN_PASSWORD = "admin123";
+
+        function toggleAdminPanel() {
+            console.log('Admin panel toggle clicked');
+            var panel = document.getElementById('adminPanel');
+            if (panel.classList.contains('hidden')) {
+                panel.classList.remove('hidden');
+            } else {
+                panel.classList.add('hidden');
+            }
+        }
+
+        function authenticateAdmin() {
+            console.log('Authenticate clicked');
+            var password = document.getElementById('adminPassword').value;
+            if (password === ADMIN_PASSWORD) {
+                document.getElementById('adminControls').classList.remove('hidden');
+                showAlert('success', '✅ Admin access granted!');
+                setupFileUpload();
+            } else {
+                showAlert('error', '❌ Incorrect password. Access denied.');
+            }
+        }
+
+        function loadDataToApp() {
+            console.log('Load data clicked');
+            if (jobsData.length === 0 || salaryData.length === 0) {
+                showAlert('error', '❌ No data to load. Please upload Excel file first.');
+                return;
+            }
+            
+            updateDataStatus('success', '✅ Data loaded: ' + jobsData.length + ' jobs, ' + salaryData.length + ' salary records (' + new Date().toLocaleString() + ')');
+            populateJobCodes();
+            populateBusinessUnits();
+            populateCountries();
+            setupCountryStateLogic();
+            enableInterface();
+            document.getElementById('adminPanel').classList.add('hidden');
+            showAlert('success', '🚀 Data loaded successfully! Scroll down to start creating proposals.');
+            document.getElementById('selectionSection').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function addProposal() {
+            console.log('Add proposal clicked');
+            var baseSalary = parseFloat(document.getElementById('baseSalary').value);
+            var ttc = parseFloat(document.getElementById('ttc').value) || 0;
+            var stiPlan = document.getElementById('stiPlan').value;
+            var stiPercent = parseFloat(document.getElementById('stiPercent').value) || 0;
+            var comments = document.getElementById('comments').value;
+            var businessUnit = document.getElementById('businessUnit').value;
+            var country = document.getElementById('country').value;
+            var region = document.getElementById('region').value;
+            var stateProvince = document.getElementById('stateProvince').value;
+            var location = document.getElementById('location').value;
+            var tier = document.getElementById('tier').value;
+
+            if (!baseSalary || baseSalary <= 0) {
+                alert('❌ Please enter a valid base salary');
+                return;
+            }
+
+            if (!selectedJob) {
+                alert('❌ Please select a job first');
+                return;
+            }
+
+            // Calculate salary position
+            var position = 'No range data';
+            var salaryInfo = null;
+            for (var i = 0; i < salaryData.length; i++) {
+                if (salaryData[i].JobCode === selectedJob.JobCode) {
+                    salaryInfo = salaryData[i];
+                    break;
+                }
+            }
+            
+            if (salaryInfo) {
+                if (baseSalary < salaryInfo.Min) {
+                    position = 'Below Range';
+                } else if (baseSalary > salaryInfo.Max) {
+                    position = 'Above Range';
+                } else {
+                    var pct = ((baseSalary - salaryInfo.Min) / (salaryInfo.Max - salaryInfo.Min)) * 100;
+                    position = Math.round(pct) + '% in range';
+                }
+            }
+
+            var proposal = {
+                jobCode: selectedJob.JobCode,
+                jobTitle: selectedJob.Title,
+                baseSalary: baseSalary,
+                ttc: ttc,
+                salaryPosition: position,
+                businessUnit: businessUnit,
+                country: country,
+                region: region,
+                stateProvince: stateProvince,
+                location: location,
+                tier: tier,
+                stiPlan: stiPlan,
+                stiPercent: stiPercent,
+                comments: comments,
+                created: new Date().toLocaleDateString()
+            };
+
+            proposals.push(proposal);
+            updateProposalsTable();
+            
+            // Clear form
+            document.getElementById('baseSalary').value = '';
+            document.getElementById('ttc').value = '';
+            document.getElementById('stiPlan').value = '';
+            document.getElementById('stiPercent').value = '';
+            document.getElementById('comments').value = '';
+            document.getElementById('salaryPosition').textContent = '-';
+
+            alert('✅ Proposal added successfully!');
+        }
+
+        function downloadProposals() {
+            console.log('Download clicked');
+            if (proposals.length === 0) {
+                alert('❌ No proposals to download');
+                return;
+            }
+
+            var exportData = [];
+            for (var i = 0; i < proposals.length; i++) {
+                var p = proposals[i];
+                exportData.push({
+                    'Job Code': p.jobCode,
+                    'Job Title': p.jobTitle,
+                    'Base Salary': p.baseSalary,
+                    'TTC': p.ttc,
+                    'Salary Position': p.salaryPosition,
+                    'Business Unit': p.businessUnit,
+                    'Country': p.country,
+                    'STI Plan': p.stiPlan,
+                    'STI %': p.stiPercent,
+                    'Comments': p.comments,
+                    'Created': p.created
+                });
+            }
+
+            var ws = XLSX.utils.json_to_sheet(exportData);
+            var wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Proposals');
+            XLSX.writeFile(wb, 'job_proposals.xlsx');
+        }
+
+        // HELPER FUNCTIONS
+        function showAlert(type, message) {
+            var alertDiv = document.createElement('div');
+            alertDiv.className = 'alert alert-' + type;
+            alertDiv.textContent = message;
+            
+            var uploadStatus = document.getElementById('uploadStatus');
+            if (uploadStatus) {
+                var existingAlerts = uploadStatus.querySelectorAll('.alert');
+                for (var i = 0; i < existingAlerts.length; i++) {
+                    existingAlerts[i].remove();
+                }
+                
+                uploadStatus.appendChild(alertDiv);
+                setTimeout(function() {
+                    if (alertDiv.parentNode) {
+                        alertDiv.parentNode.removeChild(alertDiv);
+                    }
+                }, 5000);
+            }
+        }
+
+        function updateDataStatus(type, message) {
+            var statusDiv = document.getElementById('dataStatus');
+            statusDiv.innerHTML = message;
+        }
+
+        function populateJobCodes() {
+            var jobCodeSelect = document.getElementById('jobCode');
+            jobCodeSelect.innerHTML = '<option value="">Select a job code...</option>';
+            jobCodeSelect.disabled = false;
+            
+            for (var i = 0; i < jobsData.length; i++) {
+                var job = jobsData[i];
+                var option = document.createElement('option');
+                option.value = job.JobCode;
+                option.textContent = job.JobCode + ' - ' + job.Title;
+                jobCodeSelect.appendChild(option);
+            }
+        }
+
+        function populateBusinessUnits() {
+            var businessUnitSelect = document.getElementById('businessUnit');
+            businessUnitSelect.innerHTML = '<option value="">Select a business unit...</option>';
+            
+            for (var i = 0; i < businessUnitsData.length; i++) {
+                var option = document.createElement('option');
+                option.value = businessUnitsData[i];
+                option.textContent = businessUnitsData[i];
+                businessUnitSelect.appendChild(option);
+            }
+        }
+
+        function populateCountries() {
+            var countrySelect = document.getElementById('country');
+            countrySelect.innerHTML = '<option value="">Select a country...</option>';
+            
+            // Remove duplicates from country list
+            var uniqueCountries = [];
+            for (var i = 0; i < countryListData.length; i++) {
+                if (uniqueCountries.indexOf(countryListData[i]) === -1) {
+                    uniqueCountries.push(countryListData[i]);
+                }
+            }
+            
+            // Sort countries alphabetically
+            uniqueCountries.sort();
+            
+            for (var i = 0; i < uniqueCountries.length; i++) {
+                var option = document.createElement('option');
+                option.value = uniqueCountries[i];
+                option.textContent = uniqueCountries[i];
+                countrySelect.appendChild(option);
+            }
+        }
+
+        function setupCountryStateLogic() {
+            var countrySelect = document.getElementById('country');
+            var stateSelect = document.getElementById('stateProvince');
+            var locationSelect = document.getElementById('location');
+            var tierSelect = document.getElementById('tier');
+            var additionalFieldsGroup = document.getElementById('additionalFieldsGroup');
+            
+            countrySelect.addEventListener('change', function() {
+                var selectedCountry = this.value;
+                var needsAdditionalFields = selectedCountry === 'Canada' || 
+                                          selectedCountry === 'China' || 
+                                          selectedCountry === 'United States of America';
+                
+                if (needsAdditionalFields) {
+                    populateStateByCountry(selectedCountry);
+                    additionalFieldsGroup.style.display = 'block';
+                    // Clear dependent dropdowns
+                    locationSelect.innerHTML = '<option value="">Select city...</option>';
+                    tierSelect.innerHTML = '<option value="">Select tier...</option>';
+                } else {
+                    additionalFieldsGroup.style.display = 'none';
+                    clearAdditionalFields();
+                }
+                updateLocationInfo();
+            });
+
+            stateSelect.addEventListener('change', function() {
+                var selectedCountry = countrySelect.value;
+                var selectedState = this.value;
+                if (selectedCountry && selectedState) {
+                    populateLocationByCountryAndState(selectedCountry, selectedState);
+                    // Clear tier dropdown
+                    tierSelect.innerHTML = '<option value="">Select tier...</option>';
+                } else {
+                    locationSelect.innerHTML = '<option value="">Select city...</option>';
+                    tierSelect.innerHTML = '<option value="">Select tier...</option>';
+                }
+                updateLocationInfo();
+            });
+
+            locationSelect.addEventListener('change', function() {
+                var selectedCountry = countrySelect.value;
+                var selectedState = stateSelect.value;
+                var selectedLocation = this.value;
+                if (selectedCountry && selectedState && selectedLocation) {
+                    populateTierByCountryStateLocation(selectedCountry, selectedState, selectedLocation);
+                } else {
+                    tierSelect.innerHTML = '<option value="">Select tier...</option>';
+                }
+                updateLocationInfo();
+            });
+
+            tierSelect.addEventListener('change', updateLocationInfo);
+        }
+
+        function clearAdditionalFields() {
+            document.getElementById('stateProvince').innerHTML = '<option value="">Select state...</option>';
+            document.getElementById('location').innerHTML = '<option value="">Select city...</option>';
+            document.getElementById('tier').innerHTML = '<option value="">Select tier...</option>';
+        }
+
+        function populateStateByCountry(country) {
+            var stateSelect = document.getElementById('stateProvince');
+            stateSelect.innerHTML = '<option value="">Select state...</option>';
+            
+            // Find all unique states for the selected country
+            var states = [];
+            for (var i = 0; i < geoData.length; i++) {
+                var record = geoData[i];
+                // Check if Country Name matches and State Name exists
+                if (record['Country Name'] === country && record['State Name']) {
+                    if (states.indexOf(record['State Name']) === -1) {
+                        states.push(record['State Name']);
+                    }
+                }
+            }
+            
+            // Sort states alphabetically
+            states.sort();
+            
+            // Add options to dropdown
+            for (var i = 0; i < states.length; i++) {
+                var option = document.createElement('option');
+                option.value = states[i];
+                option.textContent = states[i];
+                stateSelect.appendChild(option);
+            }
+        }
+
+        function populateLocationByCountryAndState(country, state) {
+            var locationSelect = document.getElementById('location');
+            locationSelect.innerHTML = '<option value="">Select city...</option>';
+            
+            // Find all unique cities for the selected country and state
+            var cities = [];
+            for (var i = 0; i < geoData.length; i++) {
+                var record = geoData[i];
+                // Check if Country Name and State Name match, and City exists
+                if (record['Country Name'] === country && 
+                    record['State Name'] === state && 
+                    record['City']) {
+                    if (cities.indexOf(record['City']) === -1) {
+                        cities.push(record['City']);
+                    }
+                }
+            }
+            
+            // Sort cities alphabetically
+            cities.sort();
+            
+            // Add options to dropdown
+            for (var i = 0; i < cities.length; i++) {
+                var option = document.createElement('option');
+                option.value = cities[i];
+                option.textContent = cities[i];
+                locationSelect.appendChild(option);
+            }
+        }
+
+        function populateTierByCountryStateLocation(country, state, city) {
+            var tierSelect = document.getElementById('tier');
+            tierSelect.innerHTML = '<option value="">Select tier...</option>';
+            
+            // Find tiers for the specific country, state, and city combination
+            var tiers = [];
+            for (var i = 0; i < geoData.length; i++) {
+                var record = geoData[i];
+                // Check if Country Name, State Name, and City match, and Tier exists
+                if (record['Country Name'] === country && 
+                    record['State Name'] === state && 
+                    record['City'] === city && 
+                    record['Tier']) {
+                    if (tiers.indexOf(record['Tier']) === -1) {
+                        tiers.push(record['Tier']);
+                    }
+                }
+            }
+            
+            // Sort tiers
+            tiers.sort();
+            
+            // Add options to dropdown (should often be just one value)
+            for (var i = 0; i < tiers.length; i++) {
+                var option = document.createElement('option');
+                option.value = tiers[i];
+                option.textContent = tiers[i];
+                tierSelect.appendChild(option);
+            }
+            
+            // If only one tier, auto-select it
+            if (tiers.length === 1) {
+                tierSelect.value = tiers[0];
+                updateLocationInfo();
+            }
+        }
+
+        function enableInterface() {
+            document.getElementById('selectionSection').style.display = 'block';
+        }
+
+        function updateProposalsTable() {
+            var tbody = document.getElementById('proposalsTableBody');
+            tbody.innerHTML = '';
+
+            for (var i = 0; i < proposals.length; i++) {
+                var proposal = proposals[i];
+                var row = tbody.insertRow();
+                row.innerHTML = 
+                    '<td>' + proposal.jobCode + '</td>' +
+                    '<td>' + proposal.jobTitle + '</td>' +
+                    '<td>$' + proposal.baseSalary.toLocaleString() + '</td>' +
+                    '<td>' + (proposal.ttc ? '$' + proposal.ttc.toLocaleString() : '') + '</td>' +
+                    '<td>' + proposal.salaryPosition + '</td>' +
+                    '<td>' + proposal.businessUnit + '</td>' +
+                    '<td>' + proposal.country + '</td>' +
+                    '<td>' + proposal.region + '</td>' +
+                    '<td>' + (proposal.stateProvince || '') + '</td>' +
+                    '<td>' + (proposal.location || '') + '</td>' +
+                    '<td>' + (proposal.tier || '') + '</td>' +
+                    '<td>' + proposal.created + '</td>';
+            }
+
+            document.getElementById('proposalsSection').style.display = 'block';
+        }
+
+        function setupFileUpload() {
+            var fileUpload = document.getElementById('fileUpload');
+            var fileInput = document.getElementById('excelFile');
+            var fileBtn = document.getElementById('fileBtn');
+
+            // Click handlers
+            fileUpload.onclick = function() { fileInput.click(); };
+            fileBtn.onclick = function() { fileInput.click(); };
+            
+            // Drag and drop
+            fileUpload.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                fileUpload.classList.add('dragover');
+            });
+            
+            fileUpload.addEventListener('dragleave', function() {
+                fileUpload.classList.remove('dragover');
+            });
+            
+            fileUpload.addEventListener('drop', function(e) {
+                e.preventDefault();
+                fileUpload.classList.remove('dragover');
+                handleFile(e.dataTransfer.files[0]);
+            });
+
+            fileInput.addEventListener('change', function(e) {
+                handleFile(e.target.files[0]);
+            });
+        }
+
+        function handleFile(file) {
+            if (!file) return;
+
+            showAlert('info', '🔄 Processing Excel file...');
+            
+            var reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    var workbook = XLSX.read(e.target.result, { type: 'binary' });
+                    
+                    // Validate required sheets
+                    var requiredSheets = ['HiNext Inventory', 'Salary Ranges', 'Business Units', 'CountryList', 'Latest Geo'];
+                    for (var j = 0; j < requiredSheets.length; j++) {
+                        if (!workbook.SheetNames.includes(requiredSheets[j])) {
+                            throw new Error('Missing required sheet: ' + requiredSheets[j]);
+                        }
+                    }
+
+                    // Read HiNext Inventory sheet
+                    var jobsSheet = workbook.Sheets['HiNext Inventory'];
+                    var jobsRaw = XLSX.utils.sheet_to_json(jobsSheet, { header: 1, range: 4 });
+                    
+                    jobsData = [];
+                    for (var i = 1; i < jobsRaw.length; i++) {
+                        var row = jobsRaw[i];
+                        if (row[0]) {
+                            jobsData.push({
+                                JobCode: row[0],
+                                Title: row[6] || '',
+                                Family: row[2] || '',
+                                SubFamily: row[1] || '',
+                                Level: row[12] || '',
+                                Grade: row[13] || '',
+                                PC: row[10] || '',
+                                HGG: row[11] || ''
+                            });
+                        }
+                    }
+
+                    // Read Salary Ranges sheet
+                    var salarySheet = workbook.Sheets['Salary Ranges'];
+                    var salaryRaw = XLSX.utils.sheet_to_json(salarySheet, { header: 1 });
+                    
+                    salaryData = [];
+                    for (var i = 1; i < salaryRaw.length; i++) {
+                        var row = salaryRaw[i];
+                        if (row[0] && row[1]) {
+                            salaryData.push({
+                                JobCode: row[0],
+                                Min: parseFloat(row[1]) || 0,
+                                Midpoint: parseFloat(row[2]) || 0,
+                                Max: parseFloat(row[3]) || 0
+                            });
+                        }
+                    }
+
+                    // Read Business Units sheet
+                    var businessUnitsSheet = workbook.Sheets['Business Units'];
+                    var businessUnitsRaw = XLSX.utils.sheet_to_json(businessUnitsSheet, { header: 1 });
+                    
+                    businessUnitsData = [];
+                    for (var i = 1; i < businessUnitsRaw.length; i++) {
+                        var row = businessUnitsRaw[i];
+                        if (row[0] && row[0].trim() !== '') {
+                            businessUnitsData.push(row[0].trim());
+                        }
+                    }
+
+                    // Read CountryList sheet - looking for COUNTRY NAME column
+                    var countryListSheet = workbook.Sheets['CountryList'];
+                    var countryListRaw = XLSX.utils.sheet_to_json(countryListSheet, { header: 1 });
+                    
+                    countryListData = [];
+                    // Find the COUNTRY NAME column index
+                    var countryNameColumnIndex = -1;
+                    if (countryListRaw.length > 0) {
+                        for (var i = 0; i < countryListRaw[0].length; i++) {
+                            if (countryListRaw[0][i] && countryListRaw[0][i].toString().toUpperCase().includes('COUNTRY NAME')) {
+                                countryNameColumnIndex = i;
+                                break;
+                            }
+                        }
+                    }
+                    
+                    if (countryNameColumnIndex >= 0) {
+                        for (var i = 1; i < countryListRaw.length; i++) {
+                            var row = countryListRaw[i];
+                            if (row[countryNameColumnIndex] && row[countryNameColumnIndex].trim() !== '') {
+                                countryListData.push(row[countryNameColumnIndex].trim());
+                            }
+                        }
+                    } else {
+                        // Fallback to first column if COUNTRY NAME column not found
+                        for (var i = 1; i < countryListRaw.length; i++) {
+                            var row = countryListRaw[i];
+                            if (row[0] && row[0].trim() !== '') {
+                                countryListData.push(row[0].trim());
+                            }
+                        }
+                    }
+
+                    // Read Latest Geo sheet
+                    var geoSheet = workbook.Sheets['Latest Geo'];
+                    var geoRaw = XLSX.utils.sheet_to_json(geoSheet, { header: 1 });
+                    
+                    geoData = [];
+                    if (geoRaw.length > 0) {
+                        var headers = geoRaw[0];
+                        for (var i = 1; i < geoRaw.length; i++) {
+                            var row = geoRaw[i];
+                            var geoRecord = {};
+                            for (var j = 0; j < headers.length; j++) {
+                                if (headers[j]) {
+                                    geoRecord[headers[j]] = row[j] || '';
+                                }
+                            }
+                            geoData.push(geoRecord);
+                        }
+                    }
+
+                    if (jobsData.length > 0 && salaryData.length > 0) {
+                        showAlert('success', '✅ Excel file processed successfully! ' + jobsData.length + ' jobs, ' + salaryData.length + ' salary records, ' + businessUnitsData.length + ' business units, ' + countryListData.length + ' countries, ' + geoData.length + ' geo records');
+                        showDataPreview();
+                    } else {
+                        throw new Error('No valid data found in the Excel sheets');
+                    }
+                } catch (error) {
+                    showAlert('error', '❌ Error processing Excel file: ' + error.message);
+                }
+            };
+            reader.readAsBinaryString(file);
+        }
+
+        function showDataPreview() {
+            var statsDiv = document.getElementById('dataStats');
+            var uniqueFamilies = [];
+            for (var i = 0; i < jobsData.length; i++) {
+                if (uniqueFamilies.indexOf(jobsData[i].Family) === -1) {
+                    uniqueFamilies.push(jobsData[i].Family);
+                }
+            }
+
+            statsDiv.innerHTML = 
+                '<div class="stat-card">' +
+                    '<div class="stat-number">' + jobsData.length + '</div>' +
+                    '<div class="stat-label">Job Codes</div>' +
+                '</div>' +
+                '<div class="stat-card">' +
+                    '<div class="stat-number">' + salaryData.length + '</div>' +
+                    '<div class="stat-label">Salary Records</div>' +
+                '</div>' +
+                '<div class="stat-card">' +
+                    '<div class="stat-number">' + businessUnitsData.length + '</div>' +
+                    '<div class="stat-label">Business Units</div>' +
+                '</div>' +
+                '<div class="stat-card">' +
+                    '<div class="stat-number">' + countryListData.length + '</div>' +
+                    '<div class="stat-label">Countries</div>' +
+                '</div>' +
+                '<div class="stat-card">' +
+                    '<div class="stat-number">' + uniqueFamilies.length + '</div>' +
+                    '<div class="stat-label">Job Families</div>' +
+                '</div>' +
+                '<div class="stat-card">' +
+                    '<div class="stat-number">' + new Date().toLocaleDateString() + '</div>' +
+                    '<div class="stat-label">Upload Date</div>' +
+                '</div>';
+
+            document.getElementById('dataPreview').classList.remove('hidden');
+        }
+
+        function handleJobSelection() {
+            var jobCode = this.value;
+            if (jobCode) {
+                selectedJob = null;
+                for (var i = 0; i < jobsData.length; i++) {
+                    if (jobsData[i].JobCode === jobCode) {
+                        selectedJob = jobsData[i];
+                        break;
+                    }
+                }
+                if (selectedJob) {
+                    showJobInfo();
+                    showResults();
+                    showProposalSection();
+                }
+            } else {
+                hideResults();
+            }
+        }
+
+        function showJobInfo() {
+            var jobInfo = document.getElementById('jobInfo');
+            var jobDetails = document.getElementById('jobDetails');
+            
+            jobDetails.innerHTML = 
+                '<div><strong>Title:</strong> ' + selectedJob.Title + '</div>' +
+                '<div><strong>Family:</strong> ' + selectedJob.Family + '</div>' +
+                '<div><strong>Level:</strong> ' + selectedJob.Level + '</div>' +
+                '<div><strong>Grade:</strong> ' + selectedJob.Grade + '</div>';
+            
+            jobInfo.classList.remove('hidden');
+        }
+
+        function showResults() {
+            var selectedJobDetails = document.getElementById('selectedJobDetails');
+            selectedJobDetails.innerHTML = 
+                '<div class="detail-item"><span class="detail-label">Job Code:</span> ' + selectedJob.JobCode + '</div>' +
+                '<div class="detail-item"><span class="detail-label">Title:</span> ' + selectedJob.Title + '</div>' +
+                '<div class="detail-item"><span class="detail-label">Family:</span> ' + selectedJob.Family + '</div>' +
+                '<div class="detail-item"><span class="detail-label">Level:</span> ' + selectedJob.Level + '</div>' +
+                '<div class="detail-item"><span class="detail-label">Grade:</span> ' + selectedJob.Grade + '</div>' +
+                '<div class="detail-item"><span class="detail-label">PC:</span> ' + selectedJob.PC + '</div>' +
+                '<div class="detail-item"><span class="detail-label">HGG:</span> ' + selectedJob.HGG + '</div>';
+
+            // Find salary data for this job
+            var salaryInfo = null;
+            for (var i = 0; i < salaryData.length; i++) {
+                if (salaryData[i].JobCode === selectedJob.JobCode) {
+                    salaryInfo = salaryData[i];
+                    break;
+                }
+            }
+            
+            if (salaryInfo) {
+                document.getElementById('salaryMin').textContent = '$' + salaryInfo.Min.toLocaleString();
+                document.getElementById('salaryMid').textContent = '$' + salaryInfo.Midpoint.toLocaleString();
+                document.getElementById('salaryMax').textContent = '$' + salaryInfo.Max.toLocaleString();
+            } else {
+                document.getElementById('salaryMin').textContent = 'N/A';
+                document.getElementById('salaryMid').textContent = 'N/A';
+                document.getElementById('salaryMax').textContent = 'N/A';
+            }
+
+            updateLocationInfo();
+            document.getElementById('resultsSection').style.display = 'block';
+        }
+
+        function updateLocationInfo() {
+            var businessUnit = document.getElementById('businessUnit').value;
+            var country = document.getElementById('country').value;
+            var region = document.getElementById('region').value;
+            var stateProvince = document.getElementById('stateProvince').value;
+            var location = document.getElementById('location').value;
+            var tier = document.getElementById('tier').value;
+            
+            var locationHTML = 
+                '<div class="detail-item"><span class="detail-label">Business Unit:</span> ' + (businessUnit || 'Not specified') + '</div>' +
+                '<div class="detail-item"><span class="detail-label">Country:</span> ' + (country || 'Not specified') + '</div>' +
+                '<div class="detail-item"><span class="detail-label">Region:</span> ' + region + '</div>';
+            
+            if (stateProvince) {
+                locationHTML += '<div class="detail-item"><span class="detail-label">State:</span> ' + stateProvince + '</div>';
+            }
+            if (location) {
+                locationHTML += '<div class="detail-item"><span class="detail-label">City:</span> ' + location + '</div>';
+            }
+            if (tier) {
+                locationHTML += '<div class="detail-item"><span class="detail-label">Tier:</span> ' + tier + '</div>';
+            }
+            
+            document.getElementById('locationInfo').innerHTML = locationHTML;
+        }
+
+        function showProposalSection() {
+            document.getElementById('proposalSection').style.display = 'block';
+        }
+
+        function hideResults() {
+            document.getElementById('resultsSection').style.display = 'none';
+            document.getElementById('proposalSection').style.display = 'none';
+            document.getElementById('jobInfo').classList.add('hidden');
+        }
+
+        function updateSalaryPosition() {
+            var baseSalary = parseFloat(this.value);
+            if (baseSalary && selectedJob) {
+                var salaryInfo = null;
+                for (var i = 0; i < salaryData.length; i++) {
+                    if (salaryData[i].JobCode === selectedJob.JobCode) {
+                        salaryInfo = salaryData[i];
+                        break;
+                    }
+                }
+                
+                if (salaryInfo) {
+                    var position;
+                    if (baseSalary < salaryInfo.Min) {
+                        position = '🔴 Below Range';
+                    } else if (baseSalary > salaryInfo.Max) {
+                        position = '🔴 Above Range';
+                    } else {
+                        var pct = ((baseSalary - salaryInfo.Min) / (salaryInfo.Max - salaryInfo.Min)) * 100;
+                        position = '🟢 ' + Math.round(pct) + '% in range';
+                    }
+                    document.getElementById('salaryPosition').innerHTML = position;
+                }
+            }
+        }
+
+        // Set up event listeners when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM loaded, setting up event listeners');
+            
+            var jobCodeSelect = document.getElementById('jobCode');
+            if (jobCodeSelect) {
+                jobCodeSelect.addEventListener('change', handleJobSelection);
+            }
+            
+            var baseSalaryInput = document.getElementById('baseSalary');
+            if (baseSalaryInput) {
+                baseSalaryInput.addEventListener('input', updateSalaryPosition);
+            }
+            
+            // Location info update listeners
+            var locationFields = ['businessUnit', 'country', 'region', 'stateProvince', 'location', 'tier'];
+            for (var i = 0; i < locationFields.length; i++) {
+                var element = document.getElementById(locationFields[i]);
+                if (element) {
+                    element.addEventListener('input', updateLocationInfo);
+                    element.addEventListener('change', updateLocationInfo);
+                }
+            }
+        });
+    </script>
+
     <div class="container">
         <!-- Header -->
         <div class="header">
@@ -362,11 +1140,11 @@
                     <div class="file-upload" id="fileUpload">
                         <p>📎 Drag and drop your Excel file here or click to browse</p>
                         <input type="file" id="excelFile" accept=".xlsx,.xls" style="display: none;">
-                        <button type="button" class="btn btn-admin" onclick="document.getElementById('excelFile').click()">
+                        <button type="button" class="btn btn-admin" id="fileBtn">
                             📁 Choose Excel File
                         </button>
                         <p style="margin-top: 10px; color: #6b7280; font-size: 14px;">
-                            Required sheets: 'HiNext Inventory' and 'Salary Ranges'
+                            Required sheets: 'HiNext Inventory', 'Salary Ranges', 'Business Units', 'CountryList', and 'Latest Geo'
                         </p>
                     </div>
 
@@ -394,15 +1172,47 @@
                     <h3>Step 1: Business Unit & Location</h3>
                     <div class="form-group">
                         <label for="businessUnit">Business Unit:</label>
-                        <input type="text" id="businessUnit" class="form-control">
+                        <select id="businessUnit" class="form-control">
+                            <option value="">Select a business unit...</option>
+                        </select>
                     </div>
                     <div class="form-group">
-                        <label for="locationNote">Location Note:</label>
-                        <input type="text" id="locationNote" class="form-control" value="EMEA">
+                        <label for="region">Region:</label>
+                        <select id="region" class="form-control">
+                            <option value="">Select a region...</option>
+                            <option value="Americas">Americas</option>
+                            <option value="APAC">APAC</option>
+                            <option value="EMEA">EMEA</option>
+                        </select>
                     </div>
                     <div class="form-group">
                         <label for="country">Country:</label>
-                        <input type="text" id="country" class="form-control">
+                        <select id="country" class="form-control">
+                            <option value="">Select a country...</option>
+                        </select>
+                    </div>
+                    <div id="additionalFieldsGroup" style="display: none;">
+                        <div class="form-group">
+                            <label for="stateProvince">State:</label>
+                            <select id="stateProvince" class="form-control">
+                                <option value="">Select state...</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="location">Location:</label>
+                            <select id="location" class="form-control">
+                                <option value="">Select city...</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="tier">Tier:</label>
+                            <select id="tier" class="form-control">
+                                <option value="">Select tier...</option>
+                            </select>
+                        </div>
+                        <p style="margin-top: 5px; color: #6b7280; font-size: 12px; font-style: italic;">
+                            *Applicable for Canada, China and USA only
+                        </p>
                     </div>
                 </div>
 
@@ -529,7 +1339,10 @@
                         <th>Position</th>
                         <th>Business Unit</th>
                         <th>Country</th>
-                        <th>Created</th>
+                        <th>Region</th>
+                        <th>State</th>
+                        <th>Location</th>
+                        <th>Tier</th>
                     </tr>
                 </thead>
                 <tbody id="proposalsTableBody">
@@ -541,412 +1354,5 @@
             </button>
         </div>
     </div>
-
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <script>
-        let jobsData = [];
-        let salaryData = [];
-        let proposals = [];
-        let selectedJob = null;
-        const ADMIN_PASSWORD = "admin123";
-
-        function toggleAdminPanel() {
-            const panel = document.getElementById('adminPanel');
-            panel.classList.toggle('hidden');
-        }
-
-        function authenticateAdmin() {
-            const password = document.getElementById('adminPassword').value;
-            if (password === ADMIN_PASSWORD) {
-                document.getElementById('adminControls').classList.remove('hidden');
-                showAlert('success', '✅ Admin access granted!');
-                setupFileUpload();
-            } else {
-                showAlert('error', '❌ Incorrect password. Access denied.');
-            }
-        }
-
-        function setupFileUpload() {
-            const fileUpload = document.getElementById('fileUpload');
-            const fileInput = document.getElementById('excelFile');
-
-            fileUpload.addEventListener('click', () => fileInput.click());
-            fileUpload.addEventListener('dragover', (e) => {
-                e.preventDefault();
-                fileUpload.classList.add('dragover');
-            });
-            fileUpload.addEventListener('dragleave', () => {
-                fileUpload.classList.remove('dragover');
-            });
-            fileUpload.addEventListener('drop', (e) => {
-                e.preventDefault();
-                fileUpload.classList.remove('dragover');
-                handleFile(e.dataTransfer.files[0]);
-            });
-
-            fileInput.addEventListener('change', (e) => {
-                handleFile(e.target.files[0]);
-            });
-        }
-
-        function handleFile(file) {
-            if (!file) return;
-
-            showAlert('info', '🔄 Processing Excel file...');
-            
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                try {
-                    const workbook = XLSX.read(e.target.result, { type: 'binary' });
-                    
-                    // Validate required sheets
-                    if (!workbook.SheetNames.includes('HiNext Inventory')) {
-                        throw new Error('Missing required sheet: HiNext Inventory');
-                    }
-                    if (!workbook.SheetNames.includes('Salary Ranges')) {
-                        throw new Error('Missing required sheet: Salary Ranges');
-                    }
-
-                    // Read HiNext Inventory sheet (jobs data)
-                    const jobsSheet = workbook.Sheets['HiNext Inventory'];
-                    const jobsRaw = XLSX.utils.sheet_to_json(jobsSheet, { header: 1, range: 4 });
-                    
-                    jobsData = jobsRaw.slice(1).filter(row => row[0]).map(row => ({
-                        JobCode: row[0],
-                        Title: row[6] || '',
-                        Family: row[2] || '',
-                        SubFamily: row[1] || '',
-                        Level: row[12] || '',
-                        Grade: row[13] || '',
-                        PC: row[10] || '',
-                        HGG: row[11] || ''
-                    }));
-
-                    // Read Salary Ranges sheet
-                    const salarySheet = workbook.Sheets['Salary Ranges'];
-                    const salaryRaw = XLSX.utils.sheet_to_json(salarySheet, { header: 1 });
-                    
-                    salaryData = salaryRaw.slice(1).filter(row => row[0] && row[1]).map(row => ({
-                        JobCode: row[0],
-                        Min: parseFloat(row[1]) || 0,
-                        Midpoint: parseFloat(row[2]) || 0,
-                        Max: parseFloat(row[3]) || 0
-                    }));
-
-                    if (jobsData.length > 0 && salaryData.length > 0) {
-                        showAlert('success', `✅ Excel file processed successfully! ${jobsData.length} jobs, ${salaryData.length} salary records`);
-                        showDataPreview();
-                    } else {
-                        throw new Error('No valid data found in the Excel sheets');
-                    }
-                } catch (error) {
-                    showAlert('error', '❌ Error processing Excel file: ' + error.message);
-                }
-            };
-            reader.readAsBinaryString(file);
-        }
-
-        function showDataPreview() {
-            const statsDiv = document.getElementById('dataStats');
-            statsDiv.innerHTML = `
-                <div class="stat-card">
-                    <div class="stat-number">${jobsData.length}</div>
-                    <div class="stat-label">Job Codes</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-number">${salaryData.length}</div>
-                    <div class="stat-label">Salary Records</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-number">${new Set(jobsData.map(j => j.Family)).size}</div>
-                    <div class="stat-label">Job Families</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-number">${new Date().toLocaleDateString()}</div>
-                    <div class="stat-label">Upload Date</div>
-                </div>
-            `;
-
-            document.getElementById('dataPreview').classList.remove('hidden');
-        }
-
-        function loadDataToApp() {
-            if (jobsData.length === 0 || salaryData.length === 0) {
-                showAlert('error', '❌ No data to load. Please upload Excel file first.');
-                return;
-            }
-
-            // Update data status
-            updateDataStatus('success', `✅ Data loaded: ${jobsData.length} jobs, ${salaryData.length} salary records (${new Date().toLocaleString()})`);
-            
-            // Populate job codes dropdown
-            populateJobCodes();
-            
-            // Enable interface
-            enableInterface();
-            
-            // Hide admin panel
-            document.getElementById('adminPanel').classList.add('hidden');
-            
-            showAlert('success', '🚀 Data loaded successfully! Scroll down to start creating proposals.');
-            
-            // Scroll to selection criteria
-            document.getElementById('selectionSection').scrollIntoView({ behavior: 'smooth' });
-        }
-
-        function updateDataStatus(type, message) {
-            const statusDiv = document.getElementById('dataStatus');
-            statusDiv.innerHTML = message;
-        }
-
-        function populateJobCodes() {
-            const jobCodeSelect = document.getElementById('jobCode');
-            jobCodeSelect.innerHTML = '<option value="">Select a job code...</option>';
-            jobCodeSelect.disabled = false;
-            
-            jobsData.forEach(job => {
-                const option = document.createElement('option');
-                option.value = job.JobCode;
-                option.textContent = `${job.JobCode} - ${job.Title}`;
-                jobCodeSelect.appendChild(option);
-            });
-        }
-
-        function enableInterface() {
-            document.getElementById('selectionSection').style.display = 'block';
-        }
-
-        function showAlert(type, message) {
-            const alertDiv = document.createElement('div');
-            alertDiv.className = `alert alert-${type}`;
-            alertDiv.textContent = message;
-            
-            // Remove existing alerts
-            const existingAlerts = document.querySelectorAll('#uploadStatus .alert');
-            existingAlerts.forEach(alert => alert.remove());
-            
-            // Add new alert
-            document.getElementById('uploadStatus').appendChild(alertDiv);
-            
-            // Auto-remove after 5 seconds
-            setTimeout(() => {
-                if (alertDiv.parentNode) {
-                    alertDiv.parentNode.removeChild(alertDiv);
-                }
-            }, 5000);
-        }
-
-        // Job selection functionality
-        document.getElementById('jobCode').addEventListener('change', function() {
-            const jobCode = this.value;
-            if (jobCode) {
-                selectedJob = jobsData.find(job => job.JobCode === jobCode);
-                if (selectedJob) {
-                    showJobInfo();
-                    showResults();
-                    showProposalSection();
-                }
-            } else {
-                hideResults();
-            }
-        });
-
-        function showJobInfo() {
-            const jobInfo = document.getElementById('jobInfo');
-            const jobDetails = document.getElementById('jobDetails');
-            
-            jobDetails.innerHTML = `
-                <div><strong>Title:</strong> ${selectedJob.Title}</div>
-                <div><strong>Family:</strong> ${selectedJob.Family}</div>
-                <div><strong>Level:</strong> ${selectedJob.Level}</div>
-                <div><strong>Grade:</strong> ${selectedJob.Grade}</div>
-            `;
-            
-            jobInfo.classList.remove('hidden');
-        }
-
-        function showResults() {
-            const selectedJobDetails = document.getElementById('selectedJobDetails');
-            selectedJobDetails.innerHTML = `
-                <div class="detail-item"><span class="detail-label">Job Code:</span> ${selectedJob.JobCode}</div>
-                <div class="detail-item"><span class="detail-label">Title:</span> ${selectedJob.Title}</div>
-                <div class="detail-item"><span class="detail-label">Family:</span> ${selectedJob.Family}</div>
-                <div class="detail-item"><span class="detail-label">Level:</span> ${selectedJob.Level}</div>
-                <div class="detail-item"><span class="detail-label">Grade:</span> ${selectedJob.Grade}</div>
-                <div class="detail-item"><span class="detail-label">PC:</span> ${selectedJob.PC}</div>
-                <div class="detail-item"><span class="detail-label">HGG:</span> ${selectedJob.HGG}</div>
-            `;
-
-            // Find salary data for this job
-            const salaryInfo = salaryData.find(salary => salary.JobCode === selectedJob.JobCode);
-            if (salaryInfo) {
-                document.getElementById('salaryMin').textContent = `$${salaryInfo.Min.toLocaleString()}`;
-                document.getElementById('salaryMid').textContent = `$${salaryInfo.Midpoint.toLocaleString()}`;
-                document.getElementById('salaryMax').textContent = `$${salaryInfo.Max.toLocaleString()}`;
-            } else {
-                document.getElementById('salaryMin').textContent = 'N/A';
-                document.getElementById('salaryMid').textContent = 'N/A';
-                document.getElementById('salaryMax').textContent = 'N/A';
-            }
-
-            updateLocationInfo();
-            document.getElementById('resultsSection').style.display = 'block';
-        }
-
-        function updateLocationInfo() {
-            const businessUnit = document.getElementById('businessUnit').value;
-            const country = document.getElementById('country').value;
-            const locationNote = document.getElementById('locationNote').value;
-            
-            document.getElementById('locationInfo').innerHTML = `
-                <div class="detail-item"><span class="detail-label">Business Unit:</span> ${businessUnit || 'Not specified'}</div>
-                <div class="detail-item"><span class="detail-label">Country:</span> ${country || 'Not specified'}</div>
-                <div class="detail-item"><span class="detail-label">Location:</span> ${locationNote}</div>
-            `;
-        }
-
-        function showProposalSection() {
-            document.getElementById('proposalSection').style.display = 'block';
-        }
-
-        function hideResults() {
-            document.getElementById('resultsSection').style.display = 'none';
-            document.getElementById('proposalSection').style.display = 'none';
-            document.getElementById('jobInfo').classList.add('hidden');
-        }
-
-        // Update location info when fields change
-        ['businessUnit', 'country', 'locationNote'].forEach(id => {
-            document.getElementById(id).addEventListener('input', updateLocationInfo);
-        });
-
-        // Update salary position when base salary changes
-        document.getElementById('baseSalary').addEventListener('input', function() {
-            const baseSalary = parseFloat(this.value);
-            if (baseSalary && selectedJob) {
-                const salaryInfo = salaryData.find(salary => salary.JobCode === selectedJob.JobCode);
-                if (salaryInfo) {
-                    let position;
-                    if (baseSalary < salaryInfo.Min) {
-                        position = '🔴 Below Range';
-                    } else if (baseSalary > salaryInfo.Max) {
-                        position = '🔴 Above Range';
-                    } else {
-                        const pct = ((baseSalary - salaryInfo.Min) / (salaryInfo.Max - salaryInfo.Min)) * 100;
-                        position = `🟢 ${Math.round(pct)}% in range`;
-                    }
-                    document.getElementById('salaryPosition').innerHTML = position;
-                }
-            }
-        });
-
-        function addProposal() {
-            const baseSalary = parseFloat(document.getElementById('baseSalary').value);
-            const ttc = parseFloat(document.getElementById('ttc').value) || 0;
-            const stiPlan = document.getElementById('stiPlan').value;
-            const stiPercent = parseFloat(document.getElementById('stiPercent').value) || 0;
-            const comments = document.getElementById('comments').value;
-            const businessUnit = document.getElementById('businessUnit').value;
-            const country = document.getElementById('country').value;
-
-            if (!baseSalary || baseSalary <= 0) {
-                alert('❌ Please enter a valid base salary');
-                return;
-            }
-
-            if (!selectedJob) {
-                alert('❌ Please select a job first');
-                return;
-            }
-
-            // Calculate salary position
-            let position = 'No range data';
-            const salaryInfo = salaryData.find(salary => salary.JobCode === selectedJob.JobCode);
-            if (salaryInfo) {
-            } else if (baseSalary > salaryInfo.Max) {
-                    position = 'Above Range';
-                } else {
-                    const pct = ((baseSalary - salaryInfo.Min) / (salaryInfo.Max - salaryInfo.Min)) * 100;
-                    position = `${Math.round(pct)}% in range`;
-                }
-            }
-
-            const proposal = {
-                jobCode: selectedJob.JobCode,
-                jobTitle: selectedJob.Title,
-                baseSalary: baseSalary,
-                ttc: ttc,
-                salaryPosition: position,
-                businessUnit: businessUnit,
-                country: country,
-                stiPlan: stiPlan,
-                stiPercent: stiPercent,
-                comments: comments,
-                created: new Date().toLocaleDateString()
-            };
-
-            proposals.push(proposal);
-            updateProposalsTable();
-            
-            // Clear form
-            document.getElementById('baseSalary').value = '';
-            document.getElementById('ttc').value = '';
-            document.getElementById('stiPlan').value = '';
-            document.getElementById('stiPercent').value = '';
-            document.getElementById('comments').value = '';
-            document.getElementById('salaryPosition').textContent = '-';
-
-            alert('✅ Proposal added successfully!');
-        }
-
-        function updateProposalsTable() {
-            const tbody = document.getElementById('proposalsTableBody');
-            tbody.innerHTML = '';
-
-            proposals.forEach(proposal => {
-                const row = tbody.insertRow();
-                row.innerHTML = `
-                    <td>${proposal.jobCode}</td>
-                    <td>${proposal.jobTitle}</td>
-                    <td>${proposal.baseSalary.toLocaleString()}</td>
-                    <td>${proposal.ttc ? ' + proposal.ttc.toLocaleString() : ''}</td>
-                    <td>${proposal.salaryPosition}</td>
-                    <td>${proposal.businessUnit}</td>
-                    <td>${proposal.country}</td>
-                    <td>${proposal.created}</td>
-                `;
-            });
-
-            document.getElementById('proposalsSection').style.display = 'block';
-        }
-
-        function downloadProposals() {
-            if (proposals.length === 0) {
-                alert('❌ No proposals to download');
-                return;
-            }
-
-            // Create workbook
-            const ws = XLSX.utils.json_to_sheet(proposals.map(p => ({
-                'Job Code': p.jobCode,
-                'Job Title': p.jobTitle,
-                'Base Salary': p.baseSalary,
-                'TTC': p.ttc,
-                'Salary Position': p.salaryPosition,
-                'Business Unit': p.businessUnit,
-                'Country': p.country,
-                'STI Plan': p.stiPlan,
-                'STI %': p.stiPercent,
-                'Comments': p.comments,
-                'Created': p.created
-            })));
-
-            const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, 'Proposals');
-
-            // Download
-            XLSX.writeFile(wb, 'job_proposals.xlsx');
-        }
-    </script>
 </body>
 </html>
