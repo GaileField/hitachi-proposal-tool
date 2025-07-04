@@ -861,15 +861,17 @@
 
             // Calculate salary position
             let position = 'No range data';
-            const salaryInfo = salaryData.find(salary => salary.JobCode === selectedJob.JobCode);
-            if (salaryInfo) {
-            } else if (baseSalary > salaryInfo.Max) {
-                    position = 'Above Range';
-                } else {
-                    const pct = ((baseSalary - salaryInfo.Min) / (salaryInfo.Max - salaryInfo.Min)) * 100;
-                    position = `${Math.round(pct)}% in range`;
-                }
-            }
+const salaryInfo = salaryData.find(salary => salary.JobCode === selectedJob.JobCode);
+if (salaryInfo) {
+    if (baseSalary < salaryInfo.Min) {
+        position = 'Below Range';
+    } else if (baseSalary > salaryInfo.Max) {
+        position = 'Above Range';
+    } else {
+        const pct = ((baseSalary - salaryInfo.Min) / (salaryInfo.Max - salaryInfo.Min)) * 100;
+        position = `${Math.round(pct)}% in range`;
+    }
+}
 
             const proposal = {
                 jobCode: selectedJob.JobCode,
