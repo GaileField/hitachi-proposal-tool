@@ -374,7 +374,8 @@
             updateDataStatus('success', '✅ Data loaded: ' + jobsData.length + ' jobs, ' + salaryData.length + ' salary records (' + new Date().toLocaleString() + ')');
             populateJobCodes();
             populateBusinessUnits();
-            populateCountries();
+            var selectedRegion = document.getElementById('region').value;
+populateCountries(selectedRegion);
             setupCountryStateLogic();
             setupJobSelectionLogic();
             enableInterface();
@@ -738,28 +739,28 @@
             }
         }
 
-        function populateCountries() {
-            var countrySelect = document.getElementById('country');
-            countrySelect.innerHTML = '<option value="">Select a country...</option>';
-            
-            // Remove duplicates from country list
-            var uniqueCountries = [];
-            for (var i = 0; i < countryListData.length; i++) {
-                if (uniqueCountries.indexOf(countryListData[i]) === -1) {
-                    uniqueCountries.push(countryListData[i]);
-                }
-            }
-            
-            // Sort countries alphabetically
-            uniqueCountries.sort();
-            
-            for (var i = 0; i < uniqueCountries.length; i++) {
-                var option = document.createElement('option');
-                option.value = uniqueCountries[i];
-                option.textContent = uniqueCountries[i];
-                countrySelect.appendChild(option);
-            }
-        }
+        function populateCountries(selectedRegion) {
+    var countrySelect = document.getElementById('country');
+    countrySelect.innerHTML = '<option value="">Select a country...</option>';
+
+    var filteredCountries = countryListData
+        .filter(function(entry) {
+            return selectedRegion ? entry.region === selectedRegion : true;
+        })
+        .map(function(entry) {
+            return entry.country;
+        });
+
+    var uniqueCountries = [...new Set(filteredCountries)].sort();
+
+    for (var i = 0; i < uniqueCountries.length; i++) {
+        var option = document.createElement('option');
+        option.value = uniqueCountries[i];
+        option.textContent = uniqueCountries[i];
+        countrySelect.appendChild(option);
+    }
+}
+
 
         function setupCountryStateLogic() {
             var countrySelect = document.getElementById('country');
@@ -767,7 +768,19 @@
             var locationSelect = document.getElementById('location');
             var tierSelect = document.getElementById('tier');
             var additionalFieldsGroup = document.getElementById('additionalFieldsGroup');
-            
+
+            var regionSelect = document.getElementById('region');
+regionSelect.addEventListener('change', function() {
+    var selectedRegion = this.value;
+    populateCountries(selectedRegion);
+
+    // Clear dependent dropdowns
+    clearAdditionalFields();
+    document.getElementById('country').value = '';
+    document.getElementById('additionalFieldsGroup').style.display = 'none';
+    updateLocationInfo();
+});
+
             countrySelect.addEventListener('change', function() {
                 var selectedCountry = this.value;
                 var needsAdditionalFields = selectedCountry === 'Canada' || 
@@ -1068,7 +1081,11 @@
                         for (var i = 1; i < countryListRaw.length; i++) {
                             var row = countryListRaw[i];
                             if (row[countryNameColumnIndex] && row[countryNameColumnIndex].trim() !== '') {
-                                countryListData.push(row[countryNameColumnIndex].trim());
+                               countryListData.push({
+    region: row[2]?.trim() || '', // Assuming region is in column B (index 1)
+    country: row[countryNameColumnIndex].trim()
+});
+
                             }
                         }
                     } else {
