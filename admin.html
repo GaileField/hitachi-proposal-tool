@@ -1655,14 +1655,76 @@ function downloadJson() {
         </div>
     </div>
 <script>
-document.addEventListener('DOMContentLoaded', function () {
-    if (isAdminMode) {
-        document.getElementById('adminPanel').classList.remove('hidden');
+<script>
+  const isAdminMode = true;
+  let jobsData = [], salaryData = [], businessUnitsData = [], countryListData = [], geoData = [];
+
+  function authenticateAdmin() {
+    const password = document.getElementById('adminPassword').value;
+    const correctPassword = "hitachi2024"; // change as needed
+
+    if (password === correctPassword) {
+      document.getElementById('adminControls').classList.remove('hidden');
     } else {
-        document.getElementById('adminPanel').classList.add('hidden');
-        document.getElementById('dataStatusSection').style.display = 'block';
+      alert("❌ Incorrect password.");
     }
-});
+  }
+
+  function downloadJson() {
+    const exportJson = {
+      jobsData,
+      salaryData,
+      businessUnitsData,
+      countryListData,
+      geoData
+    };
+    const blob = new Blob([JSON.stringify(exportJson, null, 2)], { type: 'application/json' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'data.json';
+    link.click();
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    if (isAdminMode) {
+      document.getElementById('adminPanel').classList.remove('hidden');
+    } else {
+      document.getElementById('adminPanel').classList.add('hidden');
+      document.getElementById('dataStatusSection').style.display = 'block';
+    }
+
+    // ✅ Add Excel upload wiring here:
+    const fileBtn = document.getElementById('fileBtn');
+    const excelInput = document.getElementById('excelFile');
+
+    fileBtn.addEventListener('click', () => excelInput.click());
+
+    excelInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function (e) {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+
+        try {
+          jobsData = XLSX.utils.sheet_to_json(workbook.Sheets['HiNext Inventory'] || []);
+          salaryData = XLSX.utils.sheet_to_json(workbook.Sheets['Salary Ranges'] || []);
+          businessUnitsData = XLSX.utils.sheet_to_json(workbook.Sheets['Business Units'] || []);
+          countryListData = XLSX.utils.sheet_to_json(workbook.Sheets['CountryList'] || []);
+          geoData = XLSX.utils.sheet_to_json(workbook.Sheets['Latest Geo'] || []);
+
+          alert('✅ Excel processed and ready for export');
+        } catch (err) {
+          alert('❌ Error processing Excel file: ' + err.message);
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    });
+  });
+</script>
+
 </script>
 </body>
 </html>
