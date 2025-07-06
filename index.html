@@ -1318,27 +1318,26 @@ function downloadJson() {
         document.addEventListener('DOMContentLoaded', function() {
             console.log('DOM loaded, setting up event listeners');
             if (!isAdminMode) {
-    fetch('https://hitachivantara.sharepoint.com/sites/EMEATRSpace/Shared%20Documents/General/00%20COMPENSATION/Proposal%20Tool/App%20-%20Proposal%20Tool%20Data/data.json')
-        .then(response => response.json())
-        .then(data => {
-            jobsData = data.jobsData || [];
-            salaryData = data.salaryData || [];
-            businessUnitsData = data.businessUnitsData || [];
-            countryListData = data.countryListData || [];
-            geoData = data.geoData || [];
+  fetch('https://hitachivantara.sharepoint.com/sites/EMEATRSpace/_layouts/15/download.aspx?UniqueId=ef0c7ef657aa415b9255fbe8ee49965f&e=06vnp0')
+    .then(response => response.json())
+    .then(data => {
+      jobsData = data.jobsData || [];
+      salaryData = data.salaryData || [];
+      businessUnitsData = data.businessUnitsData || [];
+      countryListData = data.countryListData || [];
+      geoData = data.geoData || [];
 
-            updateDataStatus('success', '✅ Loaded data from SharePoint (' + new Date().toLocaleDateString() + ')');
-            populateJobCodes();
-            populateBusinessUnits();
-            setupCountryStateLogic();
-            setupJobSelectionLogic();
-            enableInterface();
-        })
-        .catch(error => {
-            showAlert('error', '❌ Failed to load data from SharePoint: ' + error.message);
-        });
+      updateDataStatus('success', '✅ Loaded data from SharePoint');
+      populateJobCodes();
+      populateBusinessUnits();
+      setupCountryStateLogic();
+      setupJobSelectionLogic();
+      enableInterface();
+    })
+    .catch(error => {
+      showAlert('error', '❌ Failed to load data: ' + error.message);
+    });
 }
-
             
             var jobCodeSelect = document.getElementById('jobCode');
             if (jobCodeSelect) {
