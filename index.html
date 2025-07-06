@@ -332,6 +332,9 @@
 <body>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script>
+        // SET TO FALSE FOR MAIN APP (users)
+// SET TO TRUE FOR ADMIN APP
+const isAdminMode = true;  // Change to false for the main app
         // GLOBAL VARIABLES AND FUNCTIONS - DEFINED FIRST
         var jobsData = [];
         var salaryData = [];
@@ -1031,6 +1034,20 @@ regionSelect.addEventListener('change', function() {
                             });
                         }
                     }
+function downloadJson() {
+    const exportJson = {
+        jobsData,
+        salaryData,
+        businessUnitsData,
+        countryListData,
+        geoData
+    };
+    const blob = new Blob([JSON.stringify(exportJson, null, 2)], { type: 'application/json' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'data.json';
+    link.click();
+}
 
                     // Read Salary Ranges sheet
                     var salarySheet = workbook.Sheets['Salary Ranges'];
@@ -1300,6 +1317,28 @@ regionSelect.addEventListener('change', function() {
         // Set up event listeners when page loads
         document.addEventListener('DOMContentLoaded', function() {
             console.log('DOM loaded, setting up event listeners');
+            if (!isAdminMode) {
+    fetch('https://hitachivantara.sharepoint.com/sites/EMEATRSpace/Shared%20Documents/General/00%20COMPENSATION/Proposal%20Tool/App%20-%20Proposal%20Tool%20Data/data.json')
+        .then(response => response.json())
+        .then(data => {
+            jobsData = data.jobsData || [];
+            salaryData = data.salaryData || [];
+            businessUnitsData = data.businessUnitsData || [];
+            countryListData = data.countryListData || [];
+            geoData = data.geoData || [];
+
+            updateDataStatus('success', '✅ Loaded data from SharePoint (' + new Date().toLocaleDateString() + ')');
+            populateJobCodes();
+            populateBusinessUnits();
+            setupCountryStateLogic();
+            setupJobSelectionLogic();
+            enableInterface();
+        })
+        .catch(error => {
+            showAlert('error', '❌ Failed to load data from SharePoint: ' + error.message);
+        });
+}
+
             
             var jobCodeSelect = document.getElementById('jobCode');
             if (jobCodeSelect) {
@@ -1331,13 +1370,13 @@ regionSelect.addEventListener('change', function() {
             <p>Excel-powered compensation proposal system</p>
         </div>
 
-        <!-- Data Status -->
-        <div class="data-status">
-            <div id="dataStatus">
-                ❌ No data loaded. Click Admin Panel to upload Excel file.
-            </div>
-            <span class="admin-toggle" onclick="toggleAdminPanel()">🔧 Admin Panel</span>
-        </div>
+    <!-- For main app only -->
+<div class="data-status" id="dataStatusSection" style="display: none;">
+  <div id="dataStatus">
+    ❌ No data loaded. Click Admin Panel to upload Excel file.
+  </div>
+</div>
+
 
         <!-- Admin Panel (Hidden by default) -->
         <div class="admin-panel hidden" id="adminPanel">
@@ -1360,6 +1399,9 @@ regionSelect.addEventListener('change', function() {
                         <button type="button" class="btn btn-admin" id="fileBtn">
                             📁 Choose Excel File
                         </button>
+                        <button type="button" class="btn btn-admin" onclick="downloadJson()" style="margin-top: 10px;">
+    💾 Export as JSON (Upload to SharePoint)
+</button>
                         <p style="margin-top: 10px; color: #6b7280; font-size: 14px;">
                             Required sheets: 'HiNext Inventory', 'Salary Ranges', 'Business Units', 'CountryList', and 'Latest Geo'
                         </p>
@@ -1612,6 +1654,16 @@ regionSelect.addEventListener('change', function() {
             </button>
         </div>
     </div>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    if (isAdminMode) {
+        document.getElementById('adminPanel').classList.remove('hidden');
+    } else {
+        document.getElementById('adminPanel').classList.add('hidden');
+        document.getElementById('dataStatusSection').style.display = 'block';
+    }
+});
+</script>
 </body>
 </html>
 <!-- Trigger rebuild -->
