@@ -306,8 +306,8 @@
         var selectedJob = null;
         var dataLoaded = false;
 
-        // SharePoint JSON file URL - UPDATE THIS TO YOUR ACTUAL SHAREPOINT URL
-        https://hitachivantara.sharepoint.com/:u:/s/EMEATRSpace/EaVFJ1JeNxBJuTLhSOWFpC4BF78otBfO5_1Ju7S_N_E3cQ?download=1
+        // SharePoint JSON file URL - FIXED: Added proper variable declaration
+        const SHAREPOINT_JSON_URL = 'https://hitachivantara.sharepoint.com/:u:/s/EMEATRSpace/EaVFJ1JeNxBJuTLhSOWFpC4BF78otBfO5_1Ju7S_N_E3cQ?download=1';
 
         // Initialize app when page loads
         document.addEventListener('DOMContentLoaded', function() {
@@ -320,7 +320,88 @@
             
             fetch(SHAREPOINT_JSON_URL)
                 .then(response => {
-                    if (!response.ok) {
+                    console.log('Response status:', response.status);
+                function addProposal() {
+            const baseSalary = parseFloat(document.getElementById('baseSalary').value);
+            const ttc = parseFloat(document.getElementById('ttc').value) || 0;
+            const stiPlan = document.getElementById('stiPlan').value;
+            const stiPercent = parseFloat(document.getElementById('stiPercent').value) || 0;
+            const comments = document.getElementById('comments').value;
+            const businessUnit = document.getElementById('businessUnit').value;
+            const country = document.getElementById('country').value;
+            const region = document.getElementById('region').value;
+            const stateProvince = document.getElementById('stateProvince').value;
+            const location = document.getElementById('location').value;
+            const tier = document.getElementById('tier').value;
+
+            if (!baseSalary || baseSalary <= 0) {
+                alert('❌ Please enter a valid base salary');
+                return;
+            }
+
+            if (!selectedJob) {
+                alert('❌ Please select a job first');
+                return;
+            }
+
+            // Calculate salary position
+            let position = 'No range data';
+            const salaryInfo = salaryData.find(salary => salary.JobCode === selectedJob.JobCode);
+            
+            if (salaryInfo) {
+                if (baseSalary < salaryInfo.Min) {
+                    position = 'Below Range';
+                } else if (baseSalary > salaryInfo.Max) {
+                    position = 'Above Range';
+                } else {
+                    const pct = ((baseSalary - salaryInfo.Min) / (salaryInfo.Max - salaryInfo.Min)) * 100;
+                    position = Math.round(pct) + '% in range';
+                }
+            }
+
+            const proposal = {
+                jobCode: selectedJob.JobCode,
+                jobTitle: selectedJob.Title,
+                baseSalary: baseSalary,
+                ttc: ttc,
+                salaryPosition: position,
+                businessUnit: businessUnit,
+                country: country,
+                region: region,
+                stateProvince: stateProvince,
+                location: location,
+                tier: tier,
+                stiPlan: stiPlan,
+                stiPercent: stiPercent,
+                comments: comments,
+                created: new Date().toLocaleDateString()
+            };
+
+            proposals.push(proposal);
+            updateProposalsTable();
+            
+            // Clear form
+            document.getElementById('baseSalary').value = '';
+            document.getElementById('ttc').value = '';
+            document.getElementById('stiPlan').value = '';
+            document.getElementById('stiPercent').value = '';
+            document.getElementById('comments').value = '';
+            document.getElementById('salaryPosition').textContent = '-';
+
+            alert('✅ Proposal added successfully!');
+        }
+
+        function updateProposalsTable() {
+            const tbody = document.getElementById('proposalsTableBody');
+            tbody.innerHTML = '';
+
+            proposals.forEach(proposal => {
+                const row = tbody.insertRow();
+                row.innerHTML = `
+                    <td>${proposal.jobCode}</td>
+                    <td>${proposal.jobTitle}</td>
+                    <td>${proposal.baseSalary.toLocaleString()}</td>
+                    <td>${proposal.ttc ? 'response.ok) {
                         throw new Error(`HTTP error! status: ${response.status}`);
                     }
                     return response.json();
@@ -862,74 +943,7 @@
             const location = document.getElementById('location').value;
             const tier = document.getElementById('tier').value;
 
-            if (!baseSalary || baseSalary <= 0) {
-                alert('❌ Please enter a valid base salary');
-                return;
-            }
-
-            if (!selectedJob) {
-                alert('❌ Please select a job first');
-                return;
-            }
-
-            // Calculate salary position
-            let position = 'No range data';
-            const salaryInfo = salaryData.find(salary => salary.JobCode === selectedJob.JobCode);
-            
-            if (salaryInfo) {
-                if (baseSalary < salaryInfo.Min) {
-                    position = 'Below Range';
-                } else if (baseSalary > salaryInfo.Max) {
-                    position = 'Above Range';
-                } else {
-                    const pct = ((baseSalary - salaryInfo.Min) / (salaryInfo.Max - salaryInfo.Min)) * 100;
-                    position = Math.round(pct) + '% in range';
-                }
-            }
-
-            const proposal = {
-                jobCode: selectedJob.JobCode,
-                jobTitle: selectedJob.Title,
-                baseSalary: baseSalary,
-                ttc: ttc,
-                salaryPosition: position,
-                businessUnit: businessUnit,
-                country: country,
-                region: region,
-                stateProvince: stateProvince,
-                location: location,
-                tier: tier,
-                stiPlan: stiPlan,
-                stiPercent: stiPercent,
-                comments: comments,
-                created: new Date().toLocaleDateString()
-            };
-
-            proposals.push(proposal);
-            updateProposalsTable();
-            
-            // Clear form
-            document.getElementById('baseSalary').value = '';
-            document.getElementById('ttc').value = '';
-            document.getElementById('stiPlan').value = '';
-            document.getElementById('stiPercent').value = '';
-            document.getElementById('comments').value = '';
-            document.getElementById('salaryPosition').textContent = '-';
-
-            alert('✅ Proposal added successfully!');
-        }
-
-        function updateProposalsTable() {
-            const tbody = document.getElementById('proposalsTableBody');
-            tbody.innerHTML = '';
-
-            proposals.forEach(proposal => {
-                const row = tbody.insertRow();
-                row.innerHTML = `
-                    <td>${proposal.jobCode}</td>
-                    <td>${proposal.jobTitle}</td>
-                    <td>${proposal.baseSalary.toLocaleString()}</td>
-                    <td>${proposal.ttc ? ' + proposal.ttc.toLocaleString() : ''}</td>
+            if (! + proposal.ttc.toLocaleString() : ''}</td>
                     <td>${proposal.salaryPosition}</td>
                     <td>${proposal.businessUnit}</td>
                     <td>${proposal.country}</td>
@@ -973,3 +987,798 @@
             XLSX.utils.book_append_sheet(wb, ws, 'Proposals');
             XLSX.writeFile(wb, 'job_proposals.xlsx');
         }
+    </script>
+
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>📊 Job Proposal Tool</h1>
+            <p>SharePoint-powered compensation proposal system</p>
+        </div>
+
+        <!-- Data Status -->
+        <div class="loading-status" id="dataStatus">
+            <div class="loading-spinner"></div>
+            🔄 Loading data from SharePoint...
+        </div>
+
+        <!-- Selection Criteria -->
+        <div class="section disabled-section" id="selectionSection">
+            <div class="section-header criteria-header">
+                🎯 Selection Criteria - Please complete both steps
+            </div>
+            
+            <div class="grid">
+                <!-- Step 1: Business Unit & Location -->
+                <div>
+                    <h3>Step 1: Business Unit & Location</h3>
+                    <div class="form-group">
+                        <label for="businessUnit">Business Unit:</label>
+                        <select id="businessUnit" class="form-control">
+                            <option value="">Loading...</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="region">Region:</label>
+                        <select id="region" class="form-control">
+                            <option value="">Select a region...</option>
+                            <option value="Americas">Americas</option>
+                            <option value="APAC">APAC</option>
+                            <option value="EMEA">EMEA</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="country">Country:</label>
+                        <select id="country" class="form-control">
+                            <option value="">Select a country...</option>
+                        </select>
+                    </div>
+                    <div id="additionalFieldsGroup" style="display: none;">
+                        <div class="form-group">
+                            <label for="stateProvince">State:</label>
+                            <select id="stateProvince" class="form-control">
+                                <option value="">Select state...</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="location">Location:</label>
+                            <select id="location" class="form-control">
+                                <option value="">Select city...</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="tier">Tier:</label>
+                            <select id="tier" class="form-control">
+                                <option value="">Select tier...</option>
+                            </select>
+                        </div>
+                        <p style="margin-top: 5px; color: #6b7280; font-size: 12px; font-style: italic;">
+                            *Applicable for Canada, China and USA only
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Step 2: Select Job -->
+                <div>
+                    <h3>Step 2: Select a Job</h3>
+                    
+                    <!-- Option A: Job Family Search -->
+                    <div class="form-group">
+                        <label>
+                            <input type="radio" id="optionA" name="jobSearchOption" value="family" style="margin-right: 8px;">
+                            <strong style="color: #dc2626;">Option A:</strong> Job Family Search
+                        </label>
+                    </div>
+                    
+                    <div id="jobFamilyGroup" style="display: none; margin-left: 20px; border-left: 3px solid #dc2626; padding-left: 15px;">
+                        <div class="form-group">
+                            <label for="jobFamily">Job Family:</label>
+                            <select id="jobFamily" class="form-control">
+                                <option value="">Select job family...</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="subFamily">Sub-Family:</label>
+                            <select id="subFamily" class="form-control">
+                                <option value="">Select sub-family...</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="jobTitle">Job Title:</label>
+                            <select id="jobTitle" class="form-control">
+                                <option value="">Select job title...</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Option B: Job Code Search -->
+                    <div class="form-group" style="margin-top: 20px;">
+                        <label>
+                            <input type="radio" id="optionB" name="jobSearchOption" value="code" style="margin-right: 8px;">
+                            <strong style="color: #dc2626;">Option B:</strong> Job Code Search
+                        </label>
+                    </div>
+                    
+                    <div id="jobCodeGroup" style="display: none; margin-left: 20px; border-left: 3px solid #dc2626; padding-left: 15px;">
+                        <div class="form-group">
+                            <label for="jobCode">Job Code:</label>
+                            <select id="jobCode" class="form-control" disabled>
+                                <option value="">Loading data...</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div id="jobInfo" class="info-box hidden">
+                        <h4>Job Details:</h4>
+                        <div id="jobDetails"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Selection Results -->
+        <div class="section" id="resultsSection" style="display: none;">
+            <div class="section-header results-header">
+                📊 Selection Results
+            </div>
+            
+            <div class="results-grid">
+                <!-- Job Details -->
+                <div class="job-details">
+                    <h3>Job Details</h3>
+                    <div id="selectedJobDetails"></div>
+                </div>
+
+                <!-- Salary Range -->
+                <div class="job-details">
+                    <h3>Salary Range</h3>
+                    <div id="salaryRange">
+                        <div class="salary-grid">
+                            <div class="salary-item">
+                                <div class="salary-label">Minimum</div>
+                                <div class="salary-value" id="salaryMin">N/A</div>
+                            </div>
+                            <div class="salary-item">
+                                <div class="salary-label">Midpoint</div>
+                                <div class="salary-value" id="salaryMid">N/A</div>
+                            </div>
+                            <div class="salary-item">
+                                <div class="salary-label">Maximum</div>
+                                <div class="salary-value" id="salaryMax">N/A</div>
+                            </div>
+                            <div class="salary-item">
+                                <div class="salary-label">Position</div>
+                                <div class="salary-value" id="salaryPosition">-</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Location Info -->
+                <div class="job-details">
+                    <h3>Location Info</h3>
+                    <div id="locationInfo"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Proposal Creation -->
+        <div class="section" id="proposalSection" style="display: none;">
+            <div class="section-header proposal-header">
+                💰 Create Proposal - Please input compensation details
+            </div>
+            
+            <div class="grid">
+                <!-- Compensation Details -->
+                <div>
+                    <h3>Compensation Details</h3>
+                    <div class="form-group">
+                        <label for="baseSalary">Base Salary ($):</label>
+                        <input type="number" id="baseSalary" class="form-control" min="0" step="1000">
+                    </div>
+                    <div class="form-group">
+                        <label for="ttc">Total Target Compensation ($):</label>
+                        <input type="number" id="ttc" class="form-control" min="0" step="1000">
+                    </div>
+                </div>
+
+                <!-- Incentive Plan -->
+                <div>
+                    <h3>Incentive Plan</h3>
+                    <div class="form-group">
+                        <label for="stiPlan">STI/GSIP Plan Name:</label>
+                        <input type="text" id="stiPlan" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label for="stiPercent">STI/GSIP %:</label>
+                        <input type="number" id="stiPercent" class="form-control" min="0" max="100" step="0.5">
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="comments">Comments:</label>
+                <textarea id="comments" class="form-control" rows="3"></textarea>
+            </div>
+
+            <button type="button" class="btn btn-success" onclick="addProposal()">
+                ➕ Add Proposal
+            </button>
+        </div>
+
+        <!-- Proposals List -->
+        <div class="section" id="proposalsSection" style="display: none;">
+            <div class="section-header results-header">
+                📋 Created Proposals
+            </div>
+            
+            <table class="proposals-table">
+                <thead>
+                    <tr>
+                        <th>Job Code</th>
+                        <th>Job Title</th>
+                        <th>Base Salary</th>
+                        <th>TTC</th>
+                        <th>Position</th>
+                        <th>Business Unit</th>
+                        <th>Country</th>
+                        <th>Region</th>
+                        <th>State</th>
+                        <th>Location</th>
+                        <th>Tier</th>
+                        <th>Created</th>
+                    </tr>
+                </thead>
+                <tbody id="proposalsTableBody">
+                </tbody>
+            </table>
+            
+            <button type="button" class="btn" onclick="downloadProposals()" style="margin-top: 20px;">
+                📥 Download as Excel
+            </button>
+        </div>
+    </div>
+</body>
+</html>response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Data received from SharePoint:', data);
+                    
+                    // Validate data structure
+                    if (!data.jobsData || !data.salaryData || !data.businessUnitsData) {
+                        throw new Error('Invalid data structure - missing required fields');
+                    }
+
+                    // Load data into global variables
+                    jobsData = data.jobsData || [];
+                    salaryData = data.salaryData || [];
+                    businessUnitsData = data.businessUnitsData || [];
+                    countryListData = data.countryListData || [];
+                    geoData = data.geoData || [];
+
+                    // Initialize the application
+                    initializeApp();
+                    
+                    showDataStatus('success', `✅ Data loaded successfully: ${jobsData.length} jobs, ${salaryData.length} salary records (${new Date().toLocaleString()})`);
+                    
+                    dataLoaded = true;
+                })
+                .catch(error => {
+                    console.error('Error loading data from SharePoint:', error);
+                    showDataStatus('error', `❌ Failed to load data: ${error.message}`);
+                    showFallbackMessage();
+                });
+        }
+
+        function initializeApp() {
+            populateJobCodes();
+            populateBusinessUnits();
+            setupCountryStateLogic();
+            setupJobSelectionLogic();
+            enableInterface();
+            setupEventListeners();
+        }
+
+        function showLoadingStatus(message) {
+            const statusDiv = document.getElementById('dataStatus');
+            statusDiv.innerHTML = `<div class="loading-spinner"></div>${message}`;
+        }
+
+        function showDataStatus(type, message) {
+            const statusDiv = document.getElementById('dataStatus');
+            const statusClass = type === 'success' ? 'data-status' : 'alert alert-' + type;
+            statusDiv.className = statusClass;
+            statusDiv.innerHTML = message;
+        }
+
+        function showFallbackMessage() {
+            const statusDiv = document.getElementById('dataStatus');
+            statusDiv.innerHTML = `
+                <div class="alert alert-error">
+                    <strong>Unable to load data from SharePoint.</strong><br>
+                    Please check:
+                    <ul style="margin-top: 10px;">
+                        <li>SharePoint URL is correct and accessible</li>
+                        <li>JSON file exists and has proper permissions</li>
+                        <li>Network connection is stable</li>
+                    </ul>
+                    <button onclick="loadDataFromSharePoint()" class="btn" style="margin-top: 10px;">
+                        🔄 Retry Loading Data
+                    </button>
+                </div>
+            `;
+        }
+
+        function enableInterface() {
+            document.getElementById('selectionSection').classList.remove('disabled-section');
+            document.getElementById('jobCode').disabled = false;
+        }
+
+        function setupEventListeners() {
+            // Base salary input listener
+            const baseSalaryInput = document.getElementById('baseSalary');
+            if (baseSalaryInput) {
+                baseSalaryInput.addEventListener('input', updateSalaryPosition);
+            }
+            
+            // Location info update listeners
+            const locationFields = ['businessUnit', 'country', 'region', 'stateProvince', 'location', 'tier'];
+            locationFields.forEach(fieldId => {
+                const element = document.getElementById(fieldId);
+                if (element) {
+                    element.addEventListener('input', updateLocationInfo);
+                    element.addEventListener('change', updateLocationInfo);
+                }
+            });
+        }
+
+        function populateJobCodes() {
+            const jobCodeSelect = document.getElementById('jobCode');
+            jobCodeSelect.innerHTML = '<option value="">Select a job code...</option>';
+            jobCodeSelect.disabled = false;
+            
+            jobsData.forEach(job => {
+                const option = document.createElement('option');
+                option.value = job.JobCode;
+                option.textContent = `${job.JobCode} - ${job.Title}`;
+                jobCodeSelect.appendChild(option);
+            });
+        }
+
+        function populateBusinessUnits() {
+            const businessUnitSelect = document.getElementById('businessUnit');
+            businessUnitSelect.innerHTML = '<option value="">Select a business unit...</option>';
+            
+            businessUnitsData.forEach(unit => {
+                const option = document.createElement('option');
+                option.value = unit;
+                option.textContent = unit;
+                businessUnitSelect.appendChild(option);
+            });
+        }
+
+        function populateCountries(selectedRegion) {
+            const countrySelect = document.getElementById('country');
+            countrySelect.innerHTML = '<option value="">Select a country...</option>';
+
+            const filteredCountries = countryListData
+                .filter(entry => selectedRegion ? entry.region === selectedRegion : true)
+                .map(entry => entry.country);
+
+            const uniqueCountries = [...new Set(filteredCountries)].sort();
+
+            uniqueCountries.forEach(country => {
+                const option = document.createElement('option');
+                option.value = country;
+                option.textContent = country;
+                countrySelect.appendChild(option);
+            });
+        }
+
+        function setupCountryStateLogic() {
+            const countrySelect = document.getElementById('country');
+            const stateSelect = document.getElementById('stateProvince');
+            const locationSelect = document.getElementById('location');
+            const tierSelect = document.getElementById('tier');
+            const additionalFieldsGroup = document.getElementById('additionalFieldsGroup');
+            const regionSelect = document.getElementById('region');
+
+            regionSelect.addEventListener('change', function() {
+                const selectedRegion = this.value;
+                populateCountries(selectedRegion);
+                clearAdditionalFields();
+                document.getElementById('country').value = '';
+                additionalFieldsGroup.style.display = 'none';
+                updateLocationInfo();
+            });
+
+            countrySelect.addEventListener('change', function() {
+                const selectedCountry = this.value;
+                const needsAdditionalFields = ['Canada', 'China', 'United States of America'].includes(selectedCountry);
+                
+                if (needsAdditionalFields) {
+                    populateStateByCountry(selectedCountry);
+                    additionalFieldsGroup.style.display = 'block';
+                    locationSelect.innerHTML = '<option value="">Select city...</option>';
+                    tierSelect.innerHTML = '<option value="">Select tier...</option>';
+                } else {
+                    additionalFieldsGroup.style.display = 'none';
+                    clearAdditionalFields();
+                }
+                updateLocationInfo();
+            });
+
+            stateSelect.addEventListener('change', function() {
+                const selectedCountry = countrySelect.value;
+                const selectedState = this.value;
+                if (selectedCountry && selectedState) {
+                    populateLocationByCountryAndState(selectedCountry, selectedState);
+                    tierSelect.innerHTML = '<option value="">Select tier...</option>';
+                } else {
+                    locationSelect.innerHTML = '<option value="">Select city...</option>';
+                    tierSelect.innerHTML = '<option value="">Select tier...</option>';
+                }
+                updateLocationInfo();
+            });
+
+            locationSelect.addEventListener('change', function() {
+                const selectedCountry = countrySelect.value;
+                const selectedState = stateSelect.value;
+                const selectedLocation = this.value;
+                if (selectedCountry && selectedState && selectedLocation) {
+                    populateTierByCountryStateLocation(selectedCountry, selectedState, selectedLocation);
+                } else {
+                    tierSelect.innerHTML = '<option value="">Select tier...</option>';
+                }
+                updateLocationInfo();
+            });
+
+            tierSelect.addEventListener('change', updateLocationInfo);
+        }
+
+        function clearAdditionalFields() {
+            document.getElementById('stateProvince').innerHTML = '<option value="">Select state...</option>';
+            document.getElementById('location').innerHTML = '<option value="">Select city...</option>';
+            document.getElementById('tier').innerHTML = '<option value="">Select tier...</option>';
+        }
+
+        function populateStateByCountry(country) {
+            const stateSelect = document.getElementById('stateProvince');
+            stateSelect.innerHTML = '<option value="">Select state...</option>';
+            
+            const states = [...new Set(geoData
+                .filter(record => record['Country Name'] === country && record['State Name'])
+                .map(record => record['State Name'])
+            )].sort();
+            
+            states.forEach(state => {
+                const option = document.createElement('option');
+                option.value = state;
+                option.textContent = state;
+                stateSelect.appendChild(option);
+            });
+        }
+
+        function populateLocationByCountryAndState(country, state) {
+            const locationSelect = document.getElementById('location');
+            locationSelect.innerHTML = '<option value="">Select city...</option>';
+            
+            const cities = [...new Set(geoData
+                .filter(record => 
+                    record['Country Name'] === country && 
+                    record['State Name'] === state && 
+                    record['City']
+                )
+                .map(record => record['City'])
+            )].sort();
+            
+            cities.forEach(city => {
+                const option = document.createElement('option');
+                option.value = city;
+                option.textContent = city;
+                locationSelect.appendChild(option);
+            });
+        }
+
+        function populateTierByCountryStateLocation(country, state, city) {
+            const tierSelect = document.getElementById('tier');
+            tierSelect.innerHTML = '<option value="">Select tier...</option>';
+            
+            const tiers = [...new Set(geoData
+                .filter(record => 
+                    record['Country Name'] === country && 
+                    record['State Name'] === state && 
+                    record['City'] === city && 
+                    record['Tier']
+                )
+                .map(record => record['Tier'])
+            )].sort();
+            
+            tiers.forEach(tier => {
+                const option = document.createElement('option');
+                option.value = tier;
+                option.textContent = tier;
+                tierSelect.appendChild(option);
+            });
+            
+            // Auto-select if only one tier
+            if (tiers.length === 1) {
+                tierSelect.value = tiers[0];
+                updateLocationInfo();
+            }
+        }
+
+        function setupJobSelectionLogic() {
+            const optionARadio = document.getElementById('optionA');
+            const optionBRadio = document.getElementById('optionB');
+            const jobFamilyGroup = document.getElementById('jobFamilyGroup');
+            const jobCodeGroup = document.getElementById('jobCodeGroup');
+            const jobFamilySelect = document.getElementById('jobFamily');
+            const subFamilySelect = document.getElementById('subFamily');
+            const jobTitleSelect = document.getElementById('jobTitle');
+            const jobCodeSelect = document.getElementById('jobCode');
+
+            // Radio button listeners
+            optionARadio.addEventListener('change', function() {
+                if (this.checked) {
+                    jobFamilyGroup.style.display = 'block';
+                    jobCodeGroup.style.display = 'none';
+                    populateJobFamilies();
+                    clearJobSelection();
+                }
+            });
+
+            optionBRadio.addEventListener('change', function() {
+                if (this.checked) {
+                    jobFamilyGroup.style.display = 'none';
+                    jobCodeGroup.style.display = 'block';
+                    clearJobSelection();
+                }
+            });
+
+            // Cascading dropdowns for Option A
+            jobFamilySelect.addEventListener('change', function() {
+                const selectedFamily = this.value;
+                if (selectedFamily) {
+                    populateSubFamilies(selectedFamily);
+                    jobTitleSelect.innerHTML = '<option value="">Select job title...</option>';
+                } else {
+                    subFamilySelect.innerHTML = '<option value="">Select sub-family...</option>';
+                    jobTitleSelect.innerHTML = '<option value="">Select job title...</option>';
+                }
+                clearJobSelection();
+            });
+
+            subFamilySelect.addEventListener('change', function() {
+                const selectedFamily = jobFamilySelect.value;
+                const selectedSubFamily = this.value;
+                if (selectedFamily && selectedSubFamily) {
+                    populateJobTitles(selectedFamily, selectedSubFamily);
+                } else {
+                    jobTitleSelect.innerHTML = '<option value="">Select job title...</option>';
+                }
+                clearJobSelection();
+            });
+
+            jobTitleSelect.addEventListener('change', function() {
+                const selectedJobCode = this.value;
+                if (selectedJobCode) {
+                    selectedJob = jobsData.find(job => job.JobCode === selectedJobCode);
+                    if (selectedJob) {
+                        showJobInfo();
+                        showResults();
+                        showProposalSection();
+                    }
+                } else {
+                    clearJobSelection();
+                }
+            });
+
+            // Option B direct job code selection
+            jobCodeSelect.addEventListener('change', function() {
+                const jobCode = this.value;
+                if (jobCode) {
+                    selectedJob = jobsData.find(job => job.JobCode === jobCode);
+                    if (selectedJob) {
+                        showJobInfo();
+                        showResults();
+                        showProposalSection();
+                    }
+                } else {
+                    clearJobSelection();
+                }
+            });
+        }
+
+        function populateJobFamilies() {
+            const jobFamilySelect = document.getElementById('jobFamily');
+            jobFamilySelect.innerHTML = '<option value="">Select job family...</option>';
+            
+            const families = [...new Set(jobsData
+                .filter(job => job.FamilyTitle && job.FamilyTitle.trim() !== '')
+                .map(job => job.FamilyTitle)
+            )].sort();
+            
+            families.forEach(family => {
+                const option = document.createElement('option');
+                option.value = family;
+                option.textContent = family;
+                jobFamilySelect.appendChild(option);
+            });
+        }
+
+        function populateSubFamilies(selectedFamily) {
+            const subFamilySelect = document.getElementById('subFamily');
+            subFamilySelect.innerHTML = '<option value="">Select sub-family...</option>';
+            
+            const subFamilies = [...new Set(jobsData
+                .filter(job => 
+                    job.FamilyTitle === selectedFamily && 
+                    job.SubFamilyTitle && 
+                    job.SubFamilyTitle.trim() !== ''
+                )
+                .map(job => job.SubFamilyTitle)
+            )].sort();
+            
+            subFamilies.forEach(subFamily => {
+                const option = document.createElement('option');
+                option.value = subFamily;
+                option.textContent = subFamily;
+                subFamilySelect.appendChild(option);
+            });
+        }
+
+        function populateJobTitles(selectedFamily, selectedSubFamily) {
+            const jobTitleSelect = document.getElementById('jobTitle');
+            jobTitleSelect.innerHTML = '<option value="">Select job title...</option>';
+            
+            const jobTitles = jobsData
+                .filter(job => 
+                    job.FamilyTitle === selectedFamily && 
+                    job.SubFamilyTitle === selectedSubFamily && 
+                    job.PositionTitle && 
+                    job.PositionTitle.trim() !== ''
+                )
+                .map(job => ({
+                    positionTitle: job.PositionTitle,
+                    jobCode: job.JobCode,
+                    displayTitle: `${job.PositionTitle} (${job.JobCode})`
+                }))
+                .sort((a, b) => a.positionTitle.localeCompare(b.positionTitle));
+            
+            // Remove duplicates
+            const uniqueJobTitles = jobTitles.filter((job, index, arr) => 
+                index === arr.findIndex(j => j.positionTitle === job.positionTitle && j.jobCode === job.jobCode)
+            );
+            
+            uniqueJobTitles.forEach(job => {
+                const option = document.createElement('option');
+                option.value = job.jobCode;
+                option.textContent = job.displayTitle;
+                jobTitleSelect.appendChild(option);
+            });
+        }
+
+        function clearJobSelection() {
+            selectedJob = null;
+            hideResults();
+            document.getElementById('jobInfo').classList.add('hidden');
+        }
+
+        function showJobInfo() {
+            const jobInfo = document.getElementById('jobInfo');
+            const jobDetails = document.getElementById('jobDetails');
+            
+            jobDetails.innerHTML = `
+                <div><strong>Title:</strong> ${selectedJob.Title}</div>
+                <div><strong>Family:</strong> ${selectedJob.Family}</div>
+                <div><strong>Level:</strong> ${selectedJob.Level}</div>
+                <div><strong>Grade:</strong> ${selectedJob.Grade}</div>
+            `;
+            
+            jobInfo.classList.remove('hidden');
+        }
+
+        function showResults() {
+            const selectedJobDetails = document.getElementById('selectedJobDetails');
+            selectedJobDetails.innerHTML = `
+                <div class="detail-item"><span class="detail-label">Job Code:</span> ${selectedJob.JobCode}</div>
+                <div class="detail-item"><span class="detail-label">Title:</span> ${selectedJob.Title}</div>
+                <div class="detail-item"><span class="detail-label">Family:</span> ${selectedJob.Family}</div>
+                <div class="detail-item"><span class="detail-label">Level:</span> ${selectedJob.Level}</div>
+                <div class="detail-item"><span class="detail-label">Grade:</span> ${selectedJob.Grade}</div>
+                <div class="detail-item"><span class="detail-label">PC:</span> ${selectedJob.PC}</div>
+                <div class="detail-item"><span class="detail-label">HGG:</span> ${selectedJob.HGG}</div>
+            `;
+
+            // Find salary data for this job
+            const salaryInfo = salaryData.find(salary => salary.JobCode === selectedJob.JobCode);
+            
+            if (salaryInfo) {
+                document.getElementById('salaryMin').textContent = '$' + salaryInfo.Min.toLocaleString();
+                document.getElementById('salaryMid').textContent = '$' + salaryInfo.Midpoint.toLocaleString();
+                document.getElementById('salaryMax').textContent = '$' + salaryInfo.Max.toLocaleString();
+            } else {
+                document.getElementById('salaryMin').textContent = 'N/A';
+                document.getElementById('salaryMid').textContent = 'N/A';
+                document.getElementById('salaryMax').textContent = 'N/A';
+            }
+
+            updateLocationInfo();
+            document.getElementById('resultsSection').style.display = 'block';
+        }
+
+        function updateLocationInfo() {
+            const businessUnit = document.getElementById('businessUnit').value;
+            const country = document.getElementById('country').value;
+            const region = document.getElementById('region').value;
+            const stateProvince = document.getElementById('stateProvince').value;
+            const location = document.getElementById('location').value;
+            const tier = document.getElementById('tier').value;
+            
+            let locationHTML = `
+                <div class="detail-item"><span class="detail-label">Business Unit:</span> ${businessUnit || 'Not specified'}</div>
+                <div class="detail-item"><span class="detail-label">Country:</span> ${country || 'Not specified'}</div>
+                <div class="detail-item"><span class="detail-label">Region:</span> ${region}</div>
+            `;
+            
+            if (stateProvince) {
+                locationHTML += `<div class="detail-item"><span class="detail-label">State:</span> ${stateProvince}</div>`;
+            }
+            if (location) {
+                locationHTML += `<div class="detail-item"><span class="detail-label">City:</span> ${location}</div>`;
+            }
+            if (tier) {
+                locationHTML += `<div class="detail-item"><span class="detail-label">Tier:</span> ${tier}</div>`;
+            }
+            
+            document.getElementById('locationInfo').innerHTML = locationHTML;
+        }
+
+        function showProposalSection() {
+            document.getElementById('proposalSection').style.display = 'block';
+        }
+
+        function hideResults() {
+            document.getElementById('resultsSection').style.display = 'none';
+            document.getElementById('proposalSection').style.display = 'none';
+            document.getElementById('jobInfo').classList.add('hidden');
+        }
+
+        function updateSalaryPosition() {
+            const baseSalary = parseFloat(this.value);
+            if (baseSalary && selectedJob) {
+                const salaryInfo = salaryData.find(salary => salary.JobCode === selectedJob.JobCode);
+                
+                if (salaryInfo) {
+                    let position;
+                    if (baseSalary < salaryInfo.Min) {
+                        position = '🔴 Below Range';
+                    } else if (baseSalary > salaryInfo.Max) {
+                        position = '🔴 Above Range';
+                    } else {
+                        const pct = ((baseSalary - salaryInfo.Min) / (salaryInfo.Max - salaryInfo.Min)) * 100;
+                        position = '🟢 ' + Math.round(pct) + '% in range';
+                    }
+                    document.getElementById('salaryPosition').innerHTML = position;
+                }
+            }
+        }
+
+        function addProposal() {
+            const baseSalary = parseFloat(document.getElementById('baseSalary').value);
+            const ttc = parseFloat(document.getElementById('ttc').value) || 0;
+            const stiPlan = document.getElementById('stiPlan').value;
+            const stiPercent = parseFloat(document.getElementById('stiPercent').value) || 0;
+            const comments = document.getElementById('comments').value;
+            const businessUnit = document.getElementById('businessUnit').value;
+            const country = document.getElementById('country').value;
+            const region = document.getElementById('region').value;
+            const stateProvince = document.getElementById('stateProvince').value;
+            const location = document.getElementById('location').value;
+            const tier = document.getElementById('tier').value;
+
+            if (!
